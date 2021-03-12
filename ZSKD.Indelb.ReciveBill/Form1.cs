@@ -24,6 +24,9 @@ namespace ZSKD.Indelb.ReciveBill
     {
         private static ILog log = LogManager.GetLogger("MainForm");
         public ApiClient client;//连接
+        bool debug;//是否调试模式
+        bool Executed;//是否执行完毕
+        public static System.Timers.Timer aTimer;
         public Form1()
         {
             InitializeComponent();
@@ -33,13 +36,37 @@ namespace ZSKD.Indelb.ReciveBill
         private void Form1_Load(object sender, EventArgs e)
         {
             Login();
+            debug = Convert.ToBoolean(ConfigurationManager.AppSettings["debug"].ToString().Trim());
+
+            if (!debug)
+            {
+                aTimer = new System.Timers.Timer();
+                aTimer.Elapsed += new System.Timers.ElapsedEventHandler(checkIsCompletedAll);
+                aTimer.Interval = 5000;
+                aTimer.AutoReset = true;
+                aTimer.Enabled = true;
+            }
+            else
+            {
+                outPutReciveBill();
+                ImportData();
+            }
+            
+        }
+        private void checkIsCompletedAll(object source, System.Timers.ElapsedEventArgs e)
+        {
+            if (Executed)
+            {
+                aTimer.Stop();
+                Application.Exit();
+            }
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
             outPutReciveBill();
         }
-        public void Login()
+        public bool Login()
         {
             log.Info("登录中...");
             try
@@ -73,7 +100,7 @@ namespace ZSKD.Indelb.ReciveBill
                             string DataCenterName = JObject.Parse(ret)["Context"]["DataCenterName"].Value<string>();
                             log.Info("登录成功！账套名称："+ DataCenterName);
                             //textBox_log.AppendText(Utils.getNowTime() + " 登录成功！\r\n");
-                            break;
+                            return true;
                         case "-1":
                             log.Info("登录失败！");
                             log.Info(JObject.Parse(ret)["Message"].Value<string>());
@@ -92,6 +119,7 @@ namespace ZSKD.Indelb.ReciveBill
                 //textBox_log.AppendText(Utils.getNowTime() + sb + " \r\n");
                 log.Error(sb);
             }
+            return false;
         }
         private void outPutReciveBill()
         {
