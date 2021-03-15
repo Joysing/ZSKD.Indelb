@@ -8,6 +8,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Python", "Python", "{1682A92A-02F9-4E63-AFDE-CF2A4DFF21A2}"
 	ProjectSection(SolutionItems) = preProject
 		生产订单保存后生成PI号.py = 生产订单保存后生成PI号.py
+		..\..\p新建文件夹\Fuzhou\Python\采购回货计划表表单插件（动态表单）.py = ..\..\p新建文件夹\Fuzhou\Python\采购回货计划表表单插件（动态表单）.py
 	EndProjectSection
 EndProject
 Global
