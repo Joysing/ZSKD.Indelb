@@ -58,11 +58,27 @@ def AfterCreateModelData(e):
     if nextEntrySchemeFilter <> None:
         OpenFilterFormByClick();
 
+#通常在此事件中，修改界面元数据；
+#本示例，在此事件中，把界面元数据复制到本地，避免与其他实例公用元数据，造成串账
+def OnSetBusinessInfo(e):
+    #复制界面元数据到本地变量
+    global _currInfo
+    global _currLayout
+    currMeta=ObjectUtils.CreateCopy(this.View.OpenParameter.FormMetaData)
+    _currInfo=currMeta.BusinessInfo
+    _currLayout=currMeta.GetLayoutInfo()
+    #用本地的元数据，替换动态表单引擎持有的元数据
+    e.BusinessInfo=_currInfo
+    e.BillBusinessInfo = _currInfo
+    
+def OnSetLayoutInfo(e):
+    e.LayoutInfo=_currLayout
+    e.BillLayoutInfo=_currLayout
+    
 def AfterBindData(e):
     #获取单据体表格的元数据及外观
     entity=_currInfo.GetEntity("FEntity")
     entityApp=_currLayout.GetEntityAppearance("FEntity")
-
 
 def OpenFilterFormByClick():
     #全局变量
