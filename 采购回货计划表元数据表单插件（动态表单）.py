@@ -146,6 +146,7 @@ def OpenFilterFormByClick():
     #listpara.OpenStyle.CacheId = listpara.PageId;
     #this.View.ShowForm(listpara,FilterFormCallBack);
     FilterFormCallBack()
+    FillFEntityData()
 
 def AfterBarItemClick(e):
     if e.BarItemKey=="ora_tbCreateDeliveryPlan":
@@ -154,21 +155,26 @@ def AfterBarItemClick(e):
 def GenerateDeliveryPlan():
     entity = this.View.BillBusinessInfo.GetEntity("FEntity"); #Entity
     rows = this.Model.GetEntityDataObject(entity); #DynamicObjectCollection
-    materialStr=""
     
     ErrMessage=""
     for row in rows:
         FDemandQty=float(row["FDemandQty"])
+        DemandBillNo=str(row["FBillNo"])
+        DemandEntryID=int(row["FEntryID"])
+        DemandBillID=int(row["FID"])
+        if row["FIsComplete"]=="是":
+            ErrMessage=ErrMessage+"单据"+DemandBillNo+"物料"+row["FMatNumber"]+"已存在送货计划，禁止重复生成\n"
+            continue
+            
         if row["F_ora_CheckBox"] and FDemandQty>0:
             #查询所有该物料的未收料且未送货的采购订单数量，先循环采购订单计算合计数量，如果合计数量小于FDemandQty，提示数量不足。如果数量足够，循环下推每一行
-            #todo 送货计划单添加按钮一键下推（取采购订单to收料通知单）
             sql="/*dialect*/"
             sql=sql+"\n select t2.FID,t2.FEntryID,t2.F_ORA_JOINDELVPLANQTY 送货计划关联数量,t2.FQTY-t2.F_ORA_JOINDELVPLANQTY 剩余送货数量,t3.FREMAINRECEIVEQTY 剩余收料数量 "
             sql=sql+"\n ,case when t2.FQTY-t2.F_ORA_JOINDELVPLANQTY>t3.FREMAINRECEIVEQTY then t3.FREMAINRECEIVEQTY else t2.FQTY-t2.F_ORA_JOINDELVPLANQTY end 可送货数量     "
             sql=sql+"\n from t_PUR_POOrder t1                                                                                                                               "
             sql=sql+"\n join t_PUR_POOrderEntry t2 on t1.FID=t2.FID and t1.FDOCUMENTSTATUS='C' and t1.FCLOSESTATUS='A' and t2.FMRPCLOSESTATUS='A'                           "
             sql=sql+"\n join t_PUR_POOrderEntry_R t3 on t2.FEntryID=t3.FEntryID and t3.FREMAINRECEIVEQTY>0                                                                  "
-            sql=sql+"\n where t2.FQTY-t2.F_ORA_JOINDELVPLANQTY>0 --and t2.FMaterialID="+row["FMaterialID"]
+            sql=sql+"\n where t2.FQTY-t2.F_ORA_JOINDELVPLANQTY>0 and t2.FMaterialID="+row["FMaterialID"]
             sql=sql+"\n order by case when t2.FQTY-t2.F_ORA_JOINDELVPLANQTY>t3.FREMAINRECEIVEQTY then t3.FREMAINRECEIVEQTY else t2.FQTY-t2.F_ORA_JOINDELVPLANQTY end desc"
             
             PurchaseOrderRows=DBServiceHelper.ExecuteDynamicObject(this.Context,sql)
@@ -179,7 +185,7 @@ def GenerateDeliveryPlan():
                 PurchaseOrderQty=PurchaseOrderQty+PurchaseOrderRow["可送货数量"]
             
             if PurchaseOrderQty<FDemandQty:
-                ErrMessage=ErrMessage+"单据"+row["FBillNo"]+"物料"+row["FMatNumber"]+"生成送货计划失败，"
+                ErrMessage=ErrMessage+"单据"+DemandBillNo+"物料"+row["FMatNumber"]+"生成送货计划失败，"
                 ErrMessage=ErrMessage+"采购订单剩余收料数量"+str(PurchaseOrderQty)+"不足"+str(FDemandQty)+"或送货计划关联数量超额\n"
                 continue
             
@@ -198,24 +204,23 @@ def GenerateDeliveryPlan():
                 if FQty<=0:
                     break;
                 #一行采购订单下推成一单
-                PushDownResult=PushDownDeliveryPlan(0,SrcEntryID,FQty,0,0,"")
-                if str(PushDownResult).find("失败")>-1:
-                    ErrMessage=ErrMessage+"单据"+row["FBillNo"]+"物料"+row["FMatNumber"]+"生成送货计划失败:"+PushDownResult+"\n"
+                PushDownResult=PushDownDeliveryPlan(0,SrcEntryID,FQty,DemandBillID,DemandEntryID,DemandBillNo)
+                if PushDownResult.find("失败")>-1:
+                    ErrMessage=ErrMessage+"单据"+DemandBillNo+"物料"+row["FMatNumber"]+"生成送货计划失败:"+PushDownResult+"\n"
                 else:
-                    ErrMessage=ErrMessage+"单据"+row["FBillNo"]+"物料"+row["FMatNumber"]+"生成送货计划成功:"+str(PushDownResult)+"\n"
+                    ErrMessage=ErrMessage+"单据"+DemandBillNo+"物料"+row["FMatNumber"]+"生成送货计划成功:"+PushDownResult+"\n"
             #多行采购订单合并成一个单
             # if NeedPushEntryIds<>"":
                 # NeedPushEntryIds=NeedPushEntryIds[:-1]#删除最后一位逗号
-            # PushDownResult=PushDownDeliveryPlan(0,NeedPushEntryIds,FQty,0,0,"")
+            # PushDownResult=PushDownDeliveryPlan(0,NeedPushEntryIds,FQty,DemandBillID,DemandEntryID,DemandBillNo)
             # if str(PushDownResult).find("失败")>-1:
-                # ErrMessage=ErrMessage+"单据"+row["FBillNo"]+"物料"+row["FMatNumber"]+"生成送货计划失败:"+PushDownResult+"\n"
+                # ErrMessage=ErrMessage+"单据"+DemandBillNo+"物料"+row["FMatNumber"]+"生成送货计划失败:"+PushDownResult+"\n"
             # else:
-                # ErrMessage=ErrMessage+"单据"+row["FBillNo"]+"物料"+row["FMatNumber"]+"生成送货计划成功:"+str(PushDownResult)+"\n"
+                # ErrMessage=ErrMessage+"单据"+DemandBillNo+"物料"+row["FMatNumber"]+"生成送货计划成功:"+str(PushDownResult)+"\n"
     if ErrMessage<>"":
         this.View.ShowMessage(ErrMessage)
         
-    #todo 送货计划单 添加字段 需求单ID=FDemandBillID、需求单EntryID=FDemandEntryID、需求单号=FDemandBillNo
-    #todo使用update语句，给已生成的送货计划单的需求单ID=row["FID"]、需求单EntryID=row["FEntryID"]、需求单号=row["FBillNo"]
+    FillFEntityData()#生成后刷新数据
     
 #def FilterFormCallBack(formResult):
 def FilterFormCallBack():
@@ -240,6 +245,7 @@ def FilterFormCallBack():
     AddField("FEntity","FID","FID",150,80)
     AddField("FEntity","FEntryID","FEntryID",150,80)
     AddField("FEntity","FMaterialID","物料内码",150,80)
+    AddField("FEntity","FIsComplete","已生成送货计划",150,80)
         
     #根据新的元数据，重构单据体表格列
     grid=this.View.GetControl("FEntity")
@@ -251,6 +257,10 @@ def FilterFormCallBack():
     _currInfo.GetDynamicObjectType(True);
     this.Model.CreateNewData();
 
+    
+
+def FillFEntityData():
+    this.View.Model.DeleteEntryData("FEntity");#删除行
     # 执行查询的sql
     sql="/*dialect*/"
     sql=sql+"\n select * into #HigherBOM  from (select ROW_NUMBER() over(partition by FMATERIALID order by FNumber desc) OrderIndex,*             "
@@ -265,6 +275,7 @@ def FilterFormCallBack():
     sql=sql+"\n ,CEILING(bills.FQTY*bomc2.FNUMERATOR/bomc2.FDENOMINATOR*(1+bomc2.FSCRAPRATE/100)) as '需求数'                                     "
     sql=sql+"\n ,isnull(mat1p.FACCULEADTIME,0)+isnull(mat2p.FACCULEADTIME,0) as '固定提前期累加',bills.计算日期 as '计算日期'                     "
     sql=sql+"\n ,bills.FID,bills.FEntryID,mat3.FMaterialID                                                                                        "
+    sql=sql+"\n ,case when recpe.FEntryID is null then '否' else '是' end '已生成送货计划'                                                        "
     sql=sql+"\n from (select '生产订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID,t2.FQTY,t2.FPlanFinishDate 计算日期 from T_PRD_MO t1"
     sql=sql+"\n join T_PRD_MOENTRY t2 on t1.FID=t2.FID                                                                                            "
     sql=sql+"\n union all                                                                                                                         "
@@ -278,13 +289,15 @@ def FilterFormCallBack():
     sql=sql+"\n join t_bd_material mat2 on mat2.FMaterialID=bomc.FMATERIALID --半成品                                                             "
     sql=sql+"\n join T_BD_MATERIAL_L mat2_l on mat2_l.FMaterialID=bomc.FMATERIALID and mat2_l.FLOCALEID=2052                                      "
     sql=sql+"\n join t_BD_MaterialPlan mat2p on mat2p.FMATERIALID=mat2.FMATERIALID                                                                "
-    sql=sql+"\n left join #HigherBOM hb2 on bomc.FMATERIALID=hb2.FMATERIALID                                                                      "
-    sql=sql+"\n left join T_ENG_BOMCHILD bomc2 on bomc2.FID=hb2.FID                                                                               "
-    sql=sql+"\n left join t_bd_material mat3 on mat3.FMaterialID=bomc2.FMATERIALID --物料（半成品的下一级）                                       "
+    sql=sql+"\n join #HigherBOM hb2 on bomc.FMATERIALID=hb2.FMATERIALID                                                                           "
+    sql=sql+"\n join T_ENG_BOMCHILD bomc2 on bomc2.FID=hb2.FID                                                                                    "
+    sql=sql+"\n join t_bd_material mat3 on mat3.FMaterialID=bomc2.FMATERIALID --物料（半成品的下一级）                                            "
     sql=sql+"\n left join T_BD_MATERIAL_L mat3_l on mat3_l.FMaterialID=bomc2.FMATERIALID and mat2_l.FLOCALEID=2052                                "
     sql=sql+"\n left join T_BD_MATERIALBASE mat3b on mat3b.FMATERIALID=mat3.FMaterialID                                                           "
     sql=sql+"\n left join T_META_FORMENUMITEM enumitem on enumitem.FID='ac14913e-bd72-416d-a50b-2c7432bbff63' and enumitem.FVALUE=mat3b.FERPCLSID "
     sql=sql+"\n left join T_META_FORMENUMITEM_L eil on eil.FENUMID=enumitem.FENUMID and eil.FLOCALEID=2052                                        "
+    sql=sql+"\n left join T_PUR_ReceivePlanEntry recpe on recpe.FDEMANDBILLID=bills.FID and recpe.FDemandEntryId=bills.FEntryID                   "
+    sql=sql+"\n where bills.FQTY*bomc2.FNUMERATOR/bomc2.FDENOMINATOR*(1+bomc2.FSCRAPRATE/100)>0                                         "
    
     #global gFormResult
     #gFormResult=formResult
@@ -322,13 +335,15 @@ def FilterFormCallBack():
             row["FID"] = dt.Rows[i]["FID"]
             row["FEntryID"] = dt.Rows[i]["FEntryID"]
             row["FMaterialID"] = dt.Rows[i]["FMaterialID"]
+            row["FIsComplete"] = dt.Rows[i]["已生成送货计划"]
             rows.Add(row);  
     this.View.UpdateView("FEntity");
-
 #采购订单下推到送货计划单
 #fid=采购订单FID，EntryId=采购订单FEntryId，FQty=下推数量，DemandFID=销售订单FID，DemandFEntryId=销售订单FEntryId，DemandFBillNo=销售订单号
 def PushDownDeliveryPlan(fid,EntryId,FQty,DemandFID,DemandFEntryId,DemandFBillNo):
     rules = ConvertServiceHelper.GetConvertRules(this.Context, "PUR_PurchaseOrder", "ora_ReceivePlanBill");
+    if rules.Count==0:
+        return "采购订单下推到送货计划单失败，未找到转换规则。"
     rule=rules[0];
     selectedrows=[];
     primarykey=str(fid);
@@ -339,25 +354,31 @@ def PushDownDeliveryPlan(fid,EntryId,FQty,DemandFID,DemandFEntryId,DemandFBillNo
     pushargs=PushArgs(rule,selectedrows);
     # pushargs.TargetBillTypeId="ce8f49055c5c4782b65463a3f863bb4a";
     # pushargs.TargetOrgId=0;
-    # raise NameError(str(EntryId))
     PushResult=ConvertServiceHelper.Push(this.Context,pushargs,OperateOption.Create());
     SuccessFlag=PushResult.IsSuccess;
     
+    Errmsg=""
     if str(SuccessFlag)=="False":
-        Errmsg="";
+        Errmsg="下推失败:"
         if PushResult.OperateResult.Count>0:
-            Errmsg=PushResult.OperateResult[0].Message;
+            Errmsg=Errmsg+PushResult.OperateResult[0].Message;
         if PushResult.ValidationErrors.Count>0:
             Errmsg=Errmsg+","+PushResult.ValidationErrors[0].Message;
             Errmsg=Errmsg+","+str(PushResult.InteractionContext);
-        # raise NameError("下推失败:"+Errmsg);
-        return "下推失败:"+Errmsg
+        # raise NameError(Errmsg);
     else:
         objs=[];
         for p in PushResult.TargetDataEntities:
             obj=p.DataEntity;
             # 在此修改生成后的数据包
-            obj["PUR_ReceiveEntry"][0]["ActReceiveQty"]=FQty;
+            # ActReceiveQty=obj["PUR_ReceiveEntry"][0]["ActReceiveQty"] #供应商送货数量
+            # BaseUnitQty=obj["PUR_ReceiveEntry"][0]["BaseUnitQty"] #基本单位数量
+            # ConvertRate=ActReceiveQty/BaseUnitQty #基本单位转换率
+            # obj["PUR_ReceiveEntry"][0]["ActReceiveQty"]=FQty
+            # obj["PUR_ReceiveEntry"][0]["BaseUnitQty"]=FQty*ConvertRate #根据交货数量计算基本单位数量
+            obj["PUR_ReceiveEntry"][0]["FDemandBillID"]=DemandFID
+            obj["PUR_ReceiveEntry"][0]["FDemandEntryID"]=DemandFEntryId
+            obj["PUR_ReceiveEntry"][0]["FDemandBillNo"]=DemandFBillNo
             objs.append(obj);
         objs=tuple(objs);
         targetBillMeta=MetaDataServiceHelper.Load(this.Context, "ora_ReceivePlanBill");
@@ -366,16 +387,41 @@ def PushDownDeliveryPlan(fid,EntryId,FQty,DemandFID,DemandFEntryId,DemandFBillNo
         SaveResult=BusinessDataServiceHelper.Save(this.Context, targetBillMeta.BusinessInfo, objs, saveOption, "Save");
         SuccessFlag=SaveResult.IsSuccess;
         if str(SuccessFlag)=="False":
-            Errmsg="";
+            Errmsg="保存失败:"
             if SaveResult.OperateResult.Count>0:
-                Errmsg=SaveResult.OperateResult[0].Message;
+                Errmsg=Errmsg+SaveResult.OperateResult[0].Message;
             if SaveResult.ValidationErrors.Count>0:
                 Errmsg=Errmsg+","+SaveResult.ValidationErrors[0].Message;
                 Errmsg=Errmsg+","+str(SaveResult.InteractionContext);
-            # raise NameError("保存失败:"+Errmsg);
-            return "保存失败:"+Errmsg
+            # raise NameError(Errmsg);
         else:
-            #单据下推成功！
+            #单据下推成功！修改数量
             NewBillID = SaveResult.OperateResult[0].PKValue
-            return SaveResult.OperateResult[0].PKValue
-    return ""
+            sql="/*dialect*/ select FEntryID from T_PUR_ReceivePlanEntry where FID="+str(NewBillID)
+            SQLRows=DBServiceHelper.ExecuteDynamicObject(this.Context,sql)
+            
+            if NewBillID>0 and SQLRows.Count>0:
+                data="{\"IsEntryBatchFill\": \"true\",\"IsDeleteEntry\": \"false\","
+                data=data+"\"Model\": [                                         "
+                data=data+"    {                                                "
+                data=data+"        \"FID\": "+str(NewBillID)+",                 "
+                data=data+"        \"FDetailEntity\": [{                         "
+                data=data+"            \"FEntryID\": "+str(SQLRows[0]["FEntryID"])+",        "
+                data=data+"            \"FActReceiveQty\": "+str(FQty)+"        "
+                data=data+"        }]"
+                data=data+"    }"
+                data=data+"]}"
+                reqResult=WebApiServiceCall.BatchSave(this.Context, "ora_ReceivePlanBill",data);#Dictionary[str, object]
+                IsSuccess=reqResult["Result"]["ResponseStatus"]["IsSuccess"]
+                if not IsSuccess:
+                    SaveErrors=reqResult["Result"]["ResponseStatus"]["Errors"] #List[object]
+                    Errmsg="save失败："
+                    for saveError in SaveErrors:
+                        Errmsg=Errmsg+str(saveError["FieldName"])+","+saveError["Message"]+"\n"
+                    # raise NameError(Errmsg)
+                    return Errmsg
+                else:
+                    SuccessBillNo=reqResult["Result"]["ResponseStatus"]["SuccessEntitys"][0]["Number"]#保存成功
+                    return SuccessBillNo
+            return str(NewBillID)
+    return Errmsg

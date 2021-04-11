@@ -7,13 +7,14 @@ clr.AddReference("Kingdee.BOS.ServiceHelper")
 clr.AddReference("Kingdee.K3.FIN.Core")
 clr.AddReference("Kingdee.K3.FIN.Business.PlugIn")
 clr.AddReference("Kingdee.K3.FIN.CA.Common.BusinessEntity")
-clr.AddReference("Kingdee.BOS.App")
 clr.AddReference("System.Data")
 clr.AddReference("Kingdee.BOS.VerificationHelper")
 clr.AddReference("Kingdee.BOS.ProductModel")
 clr.AddReference('Kingdee.BOS.WebApi.FormService')
+clr.AddReference('Kingdee.BOS.Contracts')
 from Kingdee.BOS.App.Data import *
-from Kingdee.BOS.Core.Bill import *
+from Kingdee.BOS.Util import *
+from Kingdee.BOS.Core.List import *
 from Kingdee.BOS.Core.CommonFilter import *
 from Kingdee.BOS.Core.DynamicForm import *
 from Kingdee.BOS.Core.DynamicForm.PlugIn import *
@@ -37,12 +38,25 @@ import Kingdee.BOS.Core.CommonFilter.FilterParameter as fp
 import Kingdee.BOS.Core.DynamicForm.FormResult as fr
 from Kingdee.BOS.WebApi.FormService import *
 from Kingdee.BOS.ServiceHelper import *
+from Kingdee.BOS import *
+from Kingdee.BOS.Core.Metadata import *
+from Kingdee.BOS.Core.Metadata.ControlElement import *
+from Kingdee.BOS.Core.Metadata.FieldElement import *
+from Kingdee.BOS.Core import *
+from Kingdee.BOS.Core import List
+from Kingdee.BOS.App.Data import DBUtils
+from Kingdee.BOS.Core.Metadata.ConvertElement.ServiceArgs import *
+from Kingdee.BOS import Orm
+from Kingdee.BOS import *
+from Kingdee.BOS.Orm import *
+from Kingdee.BOS.Core.DynamicForm.Operation import *
+from Kingdee.BOS.App import *
+from Kingdee.BOS.Contracts import *
+from Kingdee.BOS.Util.OperateOptionUtils import *
 
 # global FilterCondition
 # FilterCondition=ProductCostMultiCondition();
 #采购回货计划表表单插件（动态表单）
-def __init__(self):
-    OpenFilterFormByClick();
 def PreOpenForm(e):
     productModelContainer = ProductModelContainerFactory.TryGetCurrent(e.Context);
     kDProduct = productModelContainer.KDProduct;
@@ -51,12 +65,6 @@ def PreOpenForm(e):
 def OnInitializeService(e):
     global _serviceProvider
     _serviceProvider = e.ServiceProvider;
-def CreateNewData(e):
-    OpenFilterFormByClick();
-def AfterCreateModelData(e):
-    nextEntrySchemeFilter = BaseFunction.GetNextEntrySchemeFilter(this.Context, _serviceProvider, "ka1d615ce32084b5fae179583e5977281", "k3347c823ccae4c25849180f2a083464b");
-    if nextEntrySchemeFilter <> None:
-        OpenFilterFormByClick();
 
 #通常在此事件中，修改界面元数据；
 #本示例，在此事件中，把界面元数据复制到本地，避免与其他实例公用元数据，造成串账
@@ -74,32 +82,57 @@ def OnSetBusinessInfo(e):
 def OnSetLayoutInfo(e):
     e.LayoutInfo=_currLayout
     e.BillLayoutInfo=_currLayout
+
+#entityKey=单据体标识,fieldKey=新字段标识,fieldName=新字段名称,Width=新字段宽度,LabelWidth=新字段标题宽度
+def AddField(entityKey,fieldKey,fieldName,Width,LabelWidth):
+    #构建文本字段
+    fld=TextField()
+    fld.Key=fieldKey
+    fld.Name=LocaleValue(fieldName)
+    fld.PropertyName=fld.Key
+    fld.EntityKey=entityKey
+    fld.Entity=_currInfo.GetEntity(entityKey)
+    _currInfo.Add(fld)
+    fldApp=TextFieldAppearance()
+    fldApp.Key = fld.Key
+    fldApp.Caption = fld.Name
+    fldApp.EntityKey = fld.EntityKey
+    fldApp.Width=LocaleValue(str(Width))
+    fldApp.LabelWidth=LocaleValue(str(LabelWidth))
+    fldApp.Tabindex=1
+    fldApp.Field=fld
+    fldApp.Locked=1
+    fldApp.Visible=1
+    _currLayout.Add(fldApp)
     
 def AfterBindData(e):
     #获取单据体表格的元数据及外观
     entity=_currInfo.GetEntity("FEntity")
     entityApp=_currLayout.GetEntityAppearance("FEntity")
+    ClearAllColumn()
+    AddColumns()
+    FilterFormCallBack(1)
+
+def AfterBarItemClick(e):
+    if e.BarItemKey=="ora_tbRefersh":
+        ClearAllColumn()
+        AddColumns()
+        FilterFormCallBack(1)
+
+# 清除全部字段
+def ClearAllColumn():
+    #获取单据体表格的元数据及外观
+    entity=_currInfo.GetEntity("FEntity")
+    entityApp=_currLayout.GetEntityAppearance("FEntity")
+    # 清除全部字段
+    oldCount = entity.Fields.Count;
+    for i in range(oldCount-1,-1,-1): #逆序循环
+        fld = entity.Fields[i]
+        _currInfo.Remove(fld);
+        fldApp = _currLayout.GetAppearance(fld.Key);
+        _currLayout.Remove(fldApp);    
 
 def OpenFilterFormByClick():
-    #全局变量
-    global FOrdDefStockID1
-    global FOrdDefStockID2
-    global FOrdDefStockID3
-
-    FOrdDefStockID1="0"
-    FOrdDefStockID2="0"
-    FOrdDefStockID3="0"
-    #读取系统参数数据包
-    parameterData=SystemParameterServiceHelper.Load(this.Context,1,0,"SAL_SystemParameter")
-    #从系统参数数据包中获取某一个参数
-    if parameterData<>None:
-        if parameterData.DynamicObjectType.Properties.ContainsKey("FOrdDefStockID1") and parameterData["FOrdDefStockID1"]<>None:
-            FOrdDefStockID1=str(parameterData["FOrdDefStockID1"]["Id"])
-        if parameterData.DynamicObjectType.Properties.ContainsKey("FOrdDefStockID2") and parameterData["FOrdDefStockID2"]<>None:
-            FOrdDefStockID2=str(parameterData["FOrdDefStockID2"]["Id"])
-        if parameterData.DynamicObjectType.Properties.ContainsKey("FOrdDefStockID3") and parameterData["FOrdDefStockID3"]<>None:
-            FOrdDefStockID3=str(parameterData["FOrdDefStockID3"]["Id"])
-            
     #打开过滤框
     listpara = FilterShowParameter();
     listpara.FormId = "ora_CGHHJHBFilter"; #打开所需要单据的唯一标示
@@ -109,85 +142,73 @@ def OpenFilterFormByClick():
     this.View.ShowForm(listpara,FilterFormCallBack);
 
 
-def AfterBarItemClick(e):
-    if e.BarItemKey=="PAEZ_tbnGenerateMPSPlan":
-        GenerateMPSPlan();
-
-def GenerateMPSPlan():
-    entity = this.View.BillBusinessInfo.GetEntity("F_PAEZ_Entity"); #Entity
-    rows = this.Model.GetEntityDataObject(entity); #DynamicObjectCollection
-    materialStr=""
-    
-    for row in rows:
-        if row["F_PAEZ_CheckBox"] and row["FShortageQtyM2"]>0:
-            materialStr=materialStr+row["FMaterialNumber"]+"\n"
-            data="{\"IsEntryBatchFill\": \"true\",\"InterationFlags\": \"\","
-            data=data+"\"Model\": ["
-            data=data+"{"
-            data=data+"        \"FID\": 0,                                   "
-            data=data+"        \"FBillTypeID\": {                            "
-            data=data+"            \"FNUMBER\": \"JHDD01_SYS\"              "
-            data=data+"        },                                            "
-            data=data+"        \"FSupplyOrgId\": {                             "
-            data=data+"            \"FNumber\": \"101\"                      "
-            data=data+"        },                                            "
-            data=data+"        \"FDemandOrgId\": {                            "
-            data=data+"            \"FNumber\": \"101\"                 "
-            data=data+"        },                                            "
-            data=data+"        \"FMaterialId\": {                        "
-            data=data+"            \"FNumber\": \""+row["FMaterialNumber"]+"\"       "
-            data=data+"        },                                            "
-            data=data+"        \"FAuxPropId\": {                            "
-            data=data+"            \"FAUXPROPID__FF100019\": \"108\",                 "
-            data=data+"            \"FAUXPROPID__FF100020\": \"1\"                 "
-            data=data+"        },                                            "
-            data=data+"        \"FReleaseType\": \"1\",                                            "
-            data=data+"        \"FSupplyMaterialId\": {                        "
-            data=data+"            \"FNumber\": \""+row["FMaterialNumber"]+"\"       "
-            data=data+"        },                                            "
-            data=data+"        \"FUnitId\": {                        "
-            data=data+"            \"FNumber\": \"Pcs\"       "
-            data=data+"        },                                            "
-            data=data+"        \"FOrderQty\": "+str(round(row["FShortageQtyM2"]/108*100,2))+",                                            "
-            data=data+"        \"FSugQty\": "+str(round(row["FShortageQtyM2"]/108*100,2))+",                                            "
-            data=data+"        \"FFirmQty\": "+str(round(row["FShortageQtyM2"]/108*100,2))+",                                            "
-            data=data+"        \"FInStockOrgId\": {                        "
-            data=data+"            \"FNumber\": \"101\"       "
-            data=data+"        },                                            "
-            data=data+"        \"FOwnerTypeId\": \"BD_OwnerOrg\",                                            "
-            data=data+"        \"FOwnerId\": {                            "
-            data=data+"            \"FNumber\": \"101\"                 "
-            data=data+"        },                                       "
-            data=data+"        \"FDataSource\": \"2\",                                            "
-            data=data+"        \"FBaseUnitId\": {                            "
-            data=data+"            \"FNumber\": \"m2\"                 "
-            data=data+"        },                                       "
-            data=data+"        \"FBaseOrderQty\": "+str(row["FShortageQtyM2"])+",                                            "
-            data=data+"        \"FBaseSugQty\": "+str(row["FShortageQtyM2"])+",                                            "
-            data=data+"        \"FBaseFirmQty\": "+str(row["FShortageQtyM2"])+",                                            "
-            data=data+"        \"FUnitArea\": 0.0108,                                            "
-            data=data+"        \"FProductType\": \"DL\",                                            "
-            data=data+"        \"FMtoNo\": \"米\",                                            "
-            data=data+"        \"FDescription\": \"由后工序缺料统计表生成。\"                                            "
-            data=data+"    }"
-            data=data+"    ]}"
-            if materialStr<>"":
-                reqResult=WebApiServiceCall.BatchSave(this.Context, "PLN_PLANORDER",data);#Dictionary[str, object]
-                IsSuccess=reqResult["Result"]["ResponseStatus"]["IsSuccess"]
-                if not IsSuccess:
-                    SaveErrors=reqResult["Result"]["ResponseStatus"]["Errors"] #List[object]
-                    saveErrorMsg=row["FMaterialNumber"]+"生成MPS计划订单失败：\n"
-                    for saveError in SaveErrors:
-                        saveErrorMsg=saveErrorMsg+str(saveError["FieldName"])+","+saveError["Message"]+"\n"
-                    raise NameError(saveErrorMsg)
-                else:
-                    SuccessBillNo=reqResult["Result"]["ResponseStatus"]["SuccessEntitys"][0]["Number"]
-                    this.View.ShowMessage(row["FMaterialNumber"]+"生成MPS计划订单成功："+SuccessBillNo)
-
 def FilterFormCallBack(formResult):
+    FStartDateStr=str(this.View.Model.DataObject["FStartDate"])
+    # 执行查询的sql
+    sql="/*dialect*/"
+    sql=sql+"\n zskd_sp_CGHHDTGJB '"+FStartDateStr+"'  "
+    # sql=sql+"\n select mat.FNUMBER 物料代码,mat_l.FNAME 物料名称                                           "
+    # sql=sql+"\n from T_BD_MATERIAL mat                                                                     "
+    # sql=sql+"\n join T_BD_MATERIAL_L mat_l on mat_l.FMATERIALID=mat.FMATERIALID and mat_l.FLOCALEID=2052   "
+    
+
+    # global gFormResult
+    # gFormResult=formResult
+    # if formResult <> None and formResult.ReturnData <> None :#and formResult.ReturnData is FilterParameter)
+       # if formResult.ReturnData.CustomFilter is not None:
+           # FMaterialID=formResult.ReturnData.CustomFilter["FMaterialID"];
+           # if FMaterialID <> None:
+               # sql=sql+" where mat.FMATERIALID="+str(FMaterialID["Id"])
+        
+    
+    dt = DBUtils.ExecuteDataSet(this.Context,sql).Tables[0];
+    if dt.Rows.Count>0:
+        entity = this.View.BillBusinessInfo.GetEntity("FEntity"); #Entity
+        rows = this.Model.GetEntityDataObject(entity); #DynamicObjectCollection
+        rows.Clear();
+        for i in range(0,dt.Rows.Count):
+            row = de.DynamicObject(entity.DynamicObjectType)
+            row["FMaterialNumber"] = dt.Rows[i]["物料编码"]
+            row["FMaterialName"] = dt.Rows[i]["物料名称"]
+            row["FMaterialSpec"] = dt.Rows[i]["物料规格"]
+            row["FReceiveAdvanceDays"] = dt.Rows[i]["采购提前期"]
+            row["FPurchaser"] = dt.Rows[i]["采购负责人"]
+            row["FPurSupplier"] = dt.Rows[i]["采购供应商"]
+            row["FStockUnit"] = dt.Rows[i]["库存计量单位"]
+            row["FStockQty"] = dt.Rows[i]["库存数"]
+            row["FOnWayQty"] = dt.Rows[i]["在途数"]
+            row["FTotalDemandQty"] = dt.Rows[i]["总需求数"]
+            row["FGrossDemandQty"] = dt.Rows[i]["当日毛需求"]
+            row["FNetDemandQty"] = dt.Rows[i]["当日净需求"]
+            for FDemandQtyDayIndex in range(1,101):
+                row["FDemandQtyDay"+str(FDemandQtyDayIndex)] = dt.Rows[i]["第"+str(FDemandQtyDayIndex)+"天"]
+            row["FLastGrossDemandQty"] = dt.Rows[i]["之后合计"]
+            rows.Add(row)
+    this.View.UpdateView("FEntity")
+
+
+def AddColumns():
+    FStartDateStr=str(this.View.Model.DataObject["FStartDate"])
+    FStartDateDt=Convert.ToDateTime(FStartDateStr)
+    
     #添加字段
     AddField("FEntity","FMaterialNumber","物料编码",150,80)
     AddField("FEntity","FMaterialName","物料名称",150,80)
+    AddField("FEntity","FMaterialSpec","物料规格",150,80)
+    AddField("FEntity","FReceiveAdvanceDays","采购提前期",150,80)
+    AddField("FEntity","FPurchaser","采购负责人",150,80)
+    AddField("FEntity","FPurSupplier","采购供应商",150,80)
+    AddField("FEntity","FStockUnit","库存计量单位",150,80)
+    AddField("FEntity","FStockQty","库存数",80,80)
+    AddField("FEntity","FOnWayQty","在途数",80,80)
+    AddField("FEntity","FTotalDemandQty","总需求数",80,80)
+    AddField("FEntity","FGrossDemandQty","当日毛需求",80,80)
+    AddField("FEntity","FNetDemandQty","当日净需求",80,80)
+    
+    for FDemandQtyDayIndex in range(1,101):
+        # AddField("FEntity","FDemandQtyDay"+FDemandQtyDayIndex,"第"+str(FDemandQtyDayIndex)+"天",80,80)
+        AddField("FEntity","FDemandQtyDay"+str(FDemandQtyDayIndex),str(FStartDateDt.AddDays(FDemandQtyDayIndex-1)).split(" ")[0],80,80)
+    AddField("FEntity","FLastGrossDemandQty","之后合计",80,80)
         
     #根据新的元数据，重构单据体表格列
     grid=this.View.GetControl("FEntity")
@@ -196,35 +217,20 @@ def FilterFormCallBack(formResult):
     grid.CreateDyanmicList(listAppearance)
     
     #使用最新的元数据，重新界面数据包
-    _currInfo.GetDynamicObjectType(True);
-    this.Model.CreateNewData();
-    #/*dialect*/select FPARAMETERS.value('(//FOrdDefStockID1_Id)[1]','varchar(max)') ,FPARAMETERS.value('(//FOrdDefStockID2_Id)[1]','varchar(max)') from T_BAS_SysParameter where FPARAMETEROBJID='SAL_SystemParameter' where FORGID=1
+    _currInfo.GetDynamicObjectType(True)
+    this.Model.CreateNewData()
     
-    # 执行查询的sql
-    sql="/*dialect*/select mat.FNUMBER 物料代码,mat_l.FNAME 物料名称"
-    sql=sql+"\n from T_BD_MATERIAL mat "
-    sql=sql+"\n join T_BD_MATERIAL_L mat_l on mat_l.FMATERIALID=mat.FMATERIALID and mat_l.FLOCALEID=2052"
-    sql=sql+"\n join T_BD_MATERIALBASE matb on matb.FMATERIALID=mat.FMATERIALID and matb.FERPCLSID=2/*物料属性=自制*/"
-    sql=sql+"\n join T_BD_MATERIALPLAN matp on matp.FMATERIALID=mat.FMATERIALID and matp.FPLANNINGSTRATEGY=0 /*计划策略=MPS*/"
-
-    global gFormResult
-    gFormResult=formResult
-    if formResult <> None and formResult.ReturnData <> None :#and formResult.ReturnData is FilterParameter)
-        if formResult.ReturnData.CustomFilter is not None:
-            FMaterialID=formResult.ReturnData.CustomFilter["FMaterialID"];
-            if FMaterialID <> None:
-                sql=sql+" where mat.FMATERIALID="+str(FMaterialID["Id"])
+def AddColumns2():
+    #添加字段
+    AddField("FEntity","FMaterialNumber","物料编码2",150,80)
+    AddField("FEntity","FMaterialName","物料名称2",150,80)
         
-    dt = DBUtils.ExecuteDataSet(this.Context,sql).Tables[0];
-    if dt.Rows.Count>0:
-        #this.View.ShowMessage(str(dt.Rows.Count));
-        entity = this.View.BillBusinessInfo.GetEntity("FEntity"); #Entity
-        rows = this.Model.GetEntityDataObject(entity); #DynamicObjectCollection
-        rows.Clear();
-        for i in range(0,dt.Rows.Count):
-            row = de.DynamicObject(entity.DynamicObjectType);
-            row["FMaterialNumber"] = dt.Rows[i]["物料代码"];
-            row["FMaterialName"] = dt.Rows[i]["物料名称"];
-          
-            rows.Add(row);  
-    this.View.UpdateView("FEntity");
+    #根据新的元数据，重构单据体表格列
+    grid=this.View.GetControl("FEntity")
+    grid.SetAllowLayoutSetting(False)#列按照索引显示
+    listAppearance=_currLayout.GetEntityAppearance("FEntity")
+    grid.CreateDyanmicList(listAppearance)
+    
+    #使用最新的元数据，重新界面数据包
+    _currInfo.GetDynamicObjectType(True)
+    this.Model.CreateNewData()
