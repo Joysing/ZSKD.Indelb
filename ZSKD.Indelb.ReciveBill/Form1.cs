@@ -8,6 +8,7 @@ using System.ComponentModel;
 using System.Configuration;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
@@ -123,7 +124,7 @@ namespace ZSKD.Indelb.ReciveBill
         }
         private void outPutReciveBill()
         {
-            List<List<object>> Bills = PUR_ReceiveBill.GetAllBill(client, "FDocumentStatus = 'C' and FCheckInComing = 1");//todo F_PAEZ_Exported=0 未导出
+            List<List<object>> Bills = PUR_ReceiveBill.GetAllBill(client, "FDocumentStatus = 'C' and FCheckInComing = 1 and F_PAEZ_Exported=0");//todo F_PAEZ_Exported=0 未导出
             MSExcel.Application excelApp = new MSExcel.Application
             {
                 Visible = false//是打开可见
@@ -170,7 +171,13 @@ namespace ZSKD.Indelb.ReciveBill
                 whs.Cells[i+2, 10] = 0;
                 whs.Cells[i+2, 11] = "QIS报检单号";
             }
-            string fileName = AppDomain.CurrentDomain.BaseDirectory + "DD_" + DateTime.Now.ToString("yyyyMMddHHmmssf") + ".XLS";
+            string ERPOUTDirectory = Convert.ToString(ConfigurationManager.AppSettings["ERPOUT"].ToString().Trim());
+            if (!Directory.Exists(ERPOUTDirectory))//如果不存在就创建文件夹  
+            {
+                Directory.CreateDirectory(ERPOUTDirectory);
+            }
+            string fileName = ERPOUTDirectory + "K3Cloud_DD_" + DateTime.Now.ToString("yyyyMMddHHmmssf") + ".XLS";
+           
             whs.SaveAs(fileName, 51);
             //关闭对象
             Marshal.ReleaseComObject(_workbook);
@@ -190,6 +197,10 @@ namespace ZSKD.Indelb.ReciveBill
         /// <param name="dictionary">需要更新的订单FID和FBillNo</param>
         public void UpdateSyncStatus(string sFormId, Dictionary<string, string> dictionary)
         {
+            if (dictionary.Count == 0)
+            {
+                return;
+            }
             //textBox_log.AppendText(Utils.getNowTime() + " 正在更新订单的同步状态...\r\n");
             string sModel = "";
 
@@ -197,7 +208,8 @@ namespace ZSKD.Indelb.ReciveBill
             {
                 sModel += "{\"FID\":\"" + FID + "\",\"F_PAEZ_Exported\":\"1\"},";
             }
-            sModel = sModel.Remove(sModel.LastIndexOf(","), 1); ; //移除掉最后一个","
+            if(sModel.Length>0)
+                sModel = sModel.Remove(sModel.LastIndexOf(","), 1); ; //移除掉最后一个","
 
             string sContent = "{\"ValidateFlag\":false,\"IsDeleteEntry\":false,\"Model\":[" + sModel + "]}";
             object[] saveInfo = new object[] { sFormId, sContent };
@@ -237,196 +249,241 @@ namespace ZSKD.Indelb.ReciveBill
         }
         private void ImportData()
         {
-            MSExcel.Application excelApp = new MSExcel.Application
+            string ERPInDirectory = Convert.ToString(ConfigurationManager.AppSettings["ERPIN"].ToString().Trim());
+            if (!File.Exists(ERPInDirectory))
             {
-                Visible = false//是打开可见
-            };
-            MSExcel.Workbooks _workbooks = excelApp.Workbooks;
-            MSExcel._Workbook _workbook = _workbooks.Add("E:\\Joysing\\kingdee\\Plugins\\ZSKD.Indelb\\ZSKD.Indelb.ReciveBill\\IQC_G20200901112-写入ERP.xls");
-            MSExcel._Worksheet whs = _workbook.Sheets[2];//获取第2张工作表 TODO：生产环境改回1
-
-            whs.Activate();
-
-            JArray ModelArray = new JArray();
-            JObject ModelJson = new JObject();
-            JArray FOrderEntrys = new JArray();
-            List<string> ordenoList = new List<string>();
-
-            int excelIndex = 2;
-            int BillNoLineNumber = 0;//表头单据编号所在行数
-            bool IsAllSuccess = true;//是否整个文件导入成功
-            bool HasSuccess = false;//是否整个文件有导入成功的订单
-            bool HasError = false;//是否整个文件有导入失败的订单
-
-            while (true)
+                log.Info("ERPIN路径不存在。");
+                return;
+            }
+            string ExcelPath = ERPInDirectory;
+            List<FileInfo> ExcelFiles = getFiles(ExcelPath, ".xls");
+            if (ExcelFiles.Count == 0)
+            {
+                log.Info("没有检测到Excel文件。");
+                return;
+            }
+            foreach (FileInfo fileInfo in ExcelFiles)
             {
                 try
                 {
-                    MSExcel.Range rang = (MSExcel.Range)whs.Cells[excelIndex, 25];//ERP收料通知单单号
-                    if (rang.Value != null)
+                    string FilePath = fileInfo.FullName;
+                    MSExcel.Application excelApp = new MSExcel.Application
                     {
-                        string ERPBillNo = Convert.ToString(rang.Value);
-                        string PrevFBillNo = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex - 1, 25]).Value);//上一行的ERP收料通知单单号
-                        string NextFBillNo = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex + 1, 25]).Value);//下一行的ERP收料通知单单号
-                        string QISBillNo = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 1]).Value);//QIS检验单号
-                        string FDate = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 2]).Value);
-                        string MaterialNumber = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 6]).Value);
-                        string ComputerResult = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 13]).Value);//电脑判定
-                        double RealQty = Convert.ToDouble(((MSExcel.Range)whs.Cells[excelIndex, 15]).Value);
+                        Visible = false//是打开可见
+                    };
+                    MSExcel.Workbooks _workbooks = excelApp.Workbooks;
+                    MSExcel._Workbook _workbook = _workbooks.Add(FilePath);
+                    MSExcel._Worksheet whs = _workbook.Sheets[1];//获取第2张工作表 TODO：生产环境改回1
 
-                        //ERP收料通知单单号和上一行不同，则是另一张单据
-                        if (!PrevFBillNo.Equals(ERPBillNo))
+                    whs.Activate();
+
+                    JArray ModelArray = new JArray();
+                    JObject ModelJson = new JObject();
+                    JArray FOrderEntrys = new JArray();
+                    List<string> ordenoList = new List<string>();
+
+                    int excelIndex = 2;
+                    int BillNoLineNumber = 0;//表头单据编号所在行数
+                    bool IsAllSuccess = true;//是否整个文件导入成功
+                    bool HasSuccess = false;//是否整个文件有导入成功的订单
+                    bool HasError = false;//是否整个文件有导入失败的订单
+
+                    log.Info("开始导入QIS返回的Excel:");
+                    while (true)
+                    {
+                        try
                         {
-                            BillNoLineNumber = excelIndex;
-
-                            //ordenoList.Add(ERPBillNo);
-                            ////设置单据头信息
-                            //ModelJson.Add("FBillTypeID", new JObject() { { "FNumber", "JYD001_SYS" } });//单据类型=来料检验单
-                            //ModelJson.Add("FBusinessType", "1");//1 采购检验
-                            //ModelJson.Add("FDate", FDate);
-                            //ModelJson.Add("FInspectOrgId", new JObject() { { "FNumber", "100.1" } });//质检组织
-                            //ModelJson.Add("FSourceOrgId", new JObject() { { "FNumber", "100.1" } });//来源组织
-                            //ModelJson.Add("FEntity", FOrderEntrys);//分录
-
-                            log.Info("正在读取：" + ERPBillNo);
-                        }
-
-                        string NeedPushEntryIds = "";
-                        //excel的一行是相同物料合并数量的，在ERP查源单，查出来可能有多行物料
-                        List<List<object>> Bills = PUR_ReceiveBill.GetAllBill(client, "FBillNo='" + ERPBillNo + "'" + " and FMaterialID.FNumber='" + MaterialNumber + "'");//todo F_PAEZ_Exported=1 未导出
-                        for (int i = 0; i < Bills.Count; i++)
-                        {
-                            double FQty = 0;
-                            string SrcBillID = Convert.ToString(Bills[i][0]);
-                            string SrcBillNo = Convert.ToString(Bills[i][1]);
-                            string SrcEntryID = Convert.ToString(Bills[i][8]);
-                            double FActReceiveQty = Convert.ToDouble(Bills[i][7]); //交货数量
-                            double FCheckJoinQty = Convert.ToDouble(Bills[i][9]);  //检验关联数量
-                            double NoCheckQty = FActReceiveQty- FCheckJoinQty;  //剩余未检验数量
-                            string SrcBillTypeID = Convert.ToString(Bills[i][10]);
-                            string SrcSeq = Convert.ToString(Bills[i][11]);
-                            if (NoCheckQty > RealQty)
+                            MSExcel.Range rang = (MSExcel.Range)whs.Cells[excelIndex, 25];//ERP收料通知单单号
+                            if (rang.Value != null)
                             {
-                                FQty = RealQty;
-                            }
-                            else
-                            {
-                                FQty = NoCheckQty;
-                            }
-                            RealQty = RealQty - FQty;
-                            if (FQty <= 0) continue;
-                            NeedPushEntryIds = NeedPushEntryIds + SrcEntryID + ",";
-                            //一行下推成一单
-                            string NewBillId = PUR_ReceiveBill.PushToInspectBill(client, SrcEntryID);
-                            if (!"".Equals(NewBillId))
-                            {
-                                //修改数量
-                                List<List<object>> InspectBills = QM_InspectBill.GetAllBill(client, "FID=" + NewBillId);
-                                if (InspectBills.Count > 0)
+                                if ("是".Equals(Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 42]).Value)))//已导出=是，则跳过
                                 {
-                                    JObject Entry = new JObject();
-                                    ModelJson.Add("FID", Convert.ToString(InspectBills[0][0]));
-                                    ModelJson.Add("FEntity", FOrderEntrys);
-                                    FOrderEntrys.Add(Entry);
-                                    Entry.Add("FEntryID", Convert.ToString(InspectBills[0][2]));
-                                    Entry.Add("FInspectQty", FQty);
-                                    Entry.Add("FMemo", "QIS导入，单号" + QISBillNo);
-                                    if (!"合格".Equals(ComputerResult))
+                                    continue;
+                                }
+
+                                string ERPBillNo = Convert.ToString(rang.Value);
+                                string PrevFBillNo = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex - 1, 25]).Value);//上一行的ERP收料通知单单号
+                                string NextFBillNo = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex + 1, 25]).Value);//下一行的ERP收料通知单单号
+                                string QISBillNo = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 1]).Value);//QIS检验单号
+                                string FDate = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 2]).Value);
+                                string MaterialNumber = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 6]).Value);
+                                string ComputerResult = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 13]).Value);//电脑判定
+                                double RealQty = Convert.ToDouble(((MSExcel.Range)whs.Cells[excelIndex, 15]).Value);
+
+                                //ERP收料通知单单号和上一行不同，则是另一张单据
+                                if (!PrevFBillNo.Equals(ERPBillNo))
+                                {
+                                    BillNoLineNumber = excelIndex;
+                                    log.Info("正在读取：" + ERPBillNo);
+                                }
+
+                                string NeedPushEntryIds = "";
+                                //excel的一行是相同物料合并数量的，在ERP查源单，查出来可能有多行物料
+                                List<List<object>> Bills = PUR_ReceiveBill.GetAllBill(client, "FBillNo='" + ERPBillNo + "'" + " and FMaterialID.FNumber='" + MaterialNumber + "'");//todo F_PAEZ_Exported=1 未导出
+                                for (int i = 0; i < Bills.Count; i++)
+                                {
+                                    double FQty = 0;
+                                    string SrcBillID = Convert.ToString(Bills[i][0]);
+                                    string SrcBillNo = Convert.ToString(Bills[i][1]);
+                                    string SrcEntryID = Convert.ToString(Bills[i][8]);
+                                    double FActReceiveQty = Convert.ToDouble(Bills[i][7]); //交货数量
+                                    double FCheckJoinQty = Convert.ToDouble(Bills[i][9]);  //检验关联数量
+                                    double NoCheckQty = FActReceiveQty - FCheckJoinQty;  //剩余未检验数量
+                                    string SrcBillTypeID = Convert.ToString(Bills[i][10]);
+                                    string SrcSeq = Convert.ToString(Bills[i][11]);
+                                    if (NoCheckQty > RealQty)
                                     {
-                                        Entry.Add("FInspectResult", "2");//检验结果=不合格
-                                    }
-                                    Dictionary<string, object> ImportResult = QM_InspectBill.SaveBill(client, new StringBuilder(ModelJson.ToString()), new List<string>(ordenoList));
-                                    ModelJson= new JObject();
-                                    FOrderEntrys = new JArray();
-                                    if (!Convert.ToBoolean(ImportResult["IsSuccess"]))
-                                    {
-                                        HasError = true;
-                                        IsAllSuccess = false;
+                                        FQty = RealQty;
                                     }
                                     else
                                     {
-                                        HasSuccess = true;
+                                        FQty = NoCheckQty;
                                     }
+                                    RealQty = RealQty - FQty;
+                                    if (FQty <= 0) continue;
+                                    NeedPushEntryIds = NeedPushEntryIds + SrcEntryID + ",";
+                                    //一行下推成一单
+                                    string NewBillId = PUR_ReceiveBill.PushToInspectBill(client, SrcEntryID);
+                                    if (!"".Equals(NewBillId))
+                                    {
+                                        //修改数量
+                                        List<List<object>> InspectBills = QM_InspectBill.GetAllBill(client, "FID=" + NewBillId);
+                                        if (InspectBills.Count > 0)
+                                        {
+                                            JObject Entry = new JObject();
+                                            ModelJson.Add("FID", Convert.ToString(InspectBills[0][0]));
+                                            ModelJson.Add("FEntity", FOrderEntrys);
+                                            FOrderEntrys.Add(Entry);
+                                            Entry.Add("FEntryID", Convert.ToString(InspectBills[0][2]));
+                                            Entry.Add("FInspectQty", FQty);
+                                            Entry.Add("FMemo", "QIS导入，单号" + QISBillNo);
+                                            if (!"合格".Equals(ComputerResult))
+                                            {
+                                                Entry.Add("FInspectResult", "2");//检验结果=不合格
+                                            }
+                                            Dictionary<string, object> ImportResult = QM_InspectBill.SaveBill(client, new StringBuilder(ModelJson.ToString()), new List<string>(ordenoList));
+                                            ModelJson = new JObject();
+                                            FOrderEntrys = new JArray();
+                                            if (!Convert.ToBoolean(ImportResult["IsSuccess"]))
+                                            {
+                                                HasError = true;
+                                                IsAllSuccess = false;
+                                            }
+                                            else
+                                            {
+                                                HasSuccess = true;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            log.Info("下推的单据已被删除。");
+                                        }
+
+                                    }
+
+
                                 }
-                                else
+                                //移除掉最后一个","
+                                if (NeedPushEntryIds.Length > 0) NeedPushEntryIds = NeedPushEntryIds.Remove(NeedPushEntryIds.LastIndexOf(","), 1);
+
+                                //判断 当前是一张单据的最后一条分录
+                                if (((MSExcel.Range)whs.Cells[excelIndex + 1, 1]).Value == null || !ERPBillNo.Equals(NextFBillNo))
                                 {
-                                    log.Info("下推的单据已被删除。");
+                                    //if (FOrderEntrys.Count > 0)
+                                    //{
+
+                                    //    Dictionary<string, object> ImportResult = QM_InspectBill.SaveBill(client, new StringBuilder(ModelJson.ToString()), new List<string>(ordenoList));
+                                    //    if (!Convert.ToBoolean(ImportResult["IsSuccess"]))
+                                    //    {
+                                    //        HasError = true;
+                                    //        IsAllSuccess = false;
+                                    //    }
+                                    //    else
+                                    //    {
+                                    //        HasSuccess = true;
+                                    //    }
+                                    //}
+
+                                    //ordenoList = new List<string>();
+                                    //ModelArray = new JArray();
+                                    //ModelJson = new JObject();
+                                    //FOrderEntrys = new JArray();
                                 }
-                                
+                                //excel已导出改为“是”
+                                //whs.Cells[excelIndex, 42] = "是";
+                                //whs.Cells[excelIndex, 43] = "导出正常";
                             }
-
-
-                            //设置分录明细
-                            //JObject Entry = new JObject();
-                            //JArray FEntity_LinkArray = new JArray();
-                            //JObject FEntity_Link = new JObject();
-                            //FEntity_LinkArray.Add(FEntity_Link);
-                            //FEntity_Link.Add("FEntity_Link_FRuleId", "QM_PURReceive2Inspect");
-                            //FEntity_Link.Add("FEntity_Link_FSTableName", "T_PUR_ReceiveEntry");//注意区分大小写
-                            //FEntity_Link.Add("FEntity_Link_FSBillId", SrcBillID);//源单（采购订单）内码
-                            //FEntity_Link.Add("FEntity_Link_FSId", SrcEntryID);//源单（采购订单）分录内码
-                            //Entry.Add("FEntity_Link", FEntity_LinkArray);
-                            //FOrderEntrys.Add(Entry);
-                            //Entry.Add("FMaterialId", new JObject() { { "FNumber", "JYD001_SYS" } });//物料编码
-                            //Entry.Add("FInspectQty", FQty);//检验数量
-                            //Entry.Add("FSrcBillType0", SrcBillTypeID);//源单类型
-                            //Entry.Add("FSrcBillNo0", SrcBillNo);//源单编号
-                            //Entry.Add("FSrcInterId0", SrcBillID);//源单内码
-                            //Entry.Add("FSrcEntryId0", SrcEntryID);//源单分录内码
-                            //Entry.Add("FSrcEntrySeq0", SrcSeq);//源单行号
-
+                            else
+                            {
+                                break;
+                            }
                         }
-                        //移除掉最后一个","
-                        if (NeedPushEntryIds.Length>0) NeedPushEntryIds = NeedPushEntryIds.Remove(NeedPushEntryIds.LastIndexOf(","), 1);
-
-                        //判断 当前是一张单据的最后一条分录
-                        if (((MSExcel.Range)whs.Cells[excelIndex + 1, 1]).Value == null || !ERPBillNo.Equals(NextFBillNo) )
+                        catch (Exception ex)
                         {
-                            //if (FOrderEntrys.Count > 0)
-                            //{
-
-                            //    Dictionary<string, object> ImportResult = QM_InspectBill.SaveBill(client, new StringBuilder(ModelJson.ToString()), new List<string>(ordenoList));
-                            //    if (!Convert.ToBoolean(ImportResult["IsSuccess"]))
-                            //    {
-                            //        HasError = true;
-                            //        IsAllSuccess = false;
-                            //    }
-                            //    else
-                            //    {
-                            //        HasSuccess = true;
-                            //    }
-                            //}
-
-                            //ordenoList = new List<string>();
-                            //ModelArray = new JArray();
-                            //ModelJson = new JObject();
-                            //FOrderEntrys = new JArray();
+                            log.Error(ex.Message);
                         }
-                        //TODO: excel已导出改为“是”
+                        finally
+                        {
+                            excelIndex++;
+                        }
+
                     }
-                    else
+                    string ResultDirectory = Path.Combine(ExcelPath, "TOCBackup\\" + DateTime.Now.ToString("yyyyMMdd"));//处理完后文件保存到这里
+                    if (!Directory.Exists(ResultDirectory))//如果不存在就创建文件夹  
                     {
-                        break;
+                        Directory.CreateDirectory(ResultDirectory);
                     }
+                    whs.SaveAs(Path.Combine(ResultDirectory, fileInfo.Name), 51);
+                    //关闭对象
+                    Marshal.ReleaseComObject(_workbook);
+                    Marshal.ReleaseComObject(whs);
+                    excelApp.Quit();
+                    GC.Collect();
+
+                    fileInfo.Delete();
                 }
                 catch (Exception ex)
                 {
-                    log.Error(ex.Message);
-                }
-                finally
-                {
-                    excelIndex++;
+                     log.Error(ex.Message);
                 }
 
             }
             
 
-            //whs.SaveAs("E:\\Joysing\\kingdee\\Plugins\\ZSKD.Indelb\\ZSKD.Indelb.ReciveBill\\IQC_G20200901112-写入ERP.xls", 51);
-            //关闭对象
-            Marshal.ReleaseComObject(_workbook);
-            Marshal.ReleaseComObject(whs);
-            excelApp.Quit();
-            GC.Collect();
+            Executed = true;
+        }
+
+        /// <summary>
+        /// 读取目录下指定后缀的文件
+        /// </summary>
+        /// <param name="path">文件夹</param>
+        /// <param name="extName">后缀名，如".txt"</param>
+        /// <returns></returns>
+        public static List<FileInfo> getFiles(string path, string extName)
+        {
+            List<FileInfo> lst = new List<FileInfo>();
+
+            try
+            {
+                DirectoryInfo fdir = new DirectoryInfo(path);
+                FileInfo[] file = fdir.GetFiles();
+                //FileInfo[] file = Directory.GetFiles(path); //文件列表 
+                if (file.Length != 0) //当前目录文件或文件夹不为空 
+                {
+                    foreach (FileInfo f in file) //显示当前目录所有文件 
+                    {
+                        if ((extName == null || extName == "") || (extName.ToLower().IndexOf(f.Extension.ToLower()) >= 0))
+                        {
+                            lst.Add(f);
+                        }
+                    }
+                }
+                return lst;
+            }
+            catch (Exception)
+            {
+                return lst;
+            }
         }
     }
 }
