@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Python", "Python", "{1682A9
 		采购回货计划表表单插件（动态表单）.py = 采购回货计划表表单插件（动态表单）.py
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZSKD.Indelb.Plugins", "ZSKD.Indelb.Plugins\ZSKD.Indelb.Plugins.csproj", "{BE1870E3-33C6-464B-B5E4-A035011FA27C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,6 +25,10 @@ Global
 		{CBD8D7D0-3799-4CB6-828C-473151C6FA1A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CBD8D7D0-3799-4CB6-828C-473151C6FA1A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CBD8D7D0-3799-4CB6-828C-473151C6FA1A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BE1870E3-33C6-464B-B5E4-A035011FA27C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BE1870E3-33C6-464B-B5E4-A035011FA27C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BE1870E3-33C6-464B-B5E4-A035011FA27C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BE1870E3-33C6-464B-B5E4-A035011FA27C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
