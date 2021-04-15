@@ -47,17 +47,17 @@ namespace ZSKD.Indelb.ReciveBill
                 aTimer.AutoReset = true;
                 aTimer.Enabled = true;
             }
-            else
-            {
-                outPutReciveBill();
-                ImportData();
-            }
-            
+            outPutReciveBill();
+            ImportData();
+            Executed = true;
+
+
         }
         private void checkIsCompletedAll(object source, System.Timers.ElapsedEventArgs e)
         {
             if (Executed)
             {
+                log.Info("正在退出程序！");
                 aTimer.Stop();
                 Application.Exit();
             }
@@ -250,7 +250,7 @@ namespace ZSKD.Indelb.ReciveBill
         private void ImportData()
         {
             string ERPInDirectory = Convert.ToString(ConfigurationManager.AppSettings["ERPIN"].ToString().Trim());
-            if (!File.Exists(ERPInDirectory))
+            if (!Directory.Exists(ERPInDirectory))
             {
                 log.Info("ERPIN路径不存在。");
                 return;
@@ -266,7 +266,9 @@ namespace ZSKD.Indelb.ReciveBill
             {
                 try
                 {
+                    
                     string FilePath = fileInfo.FullName;
+                    log.Info("正在处理：" + FilePath);
                     MSExcel.Application excelApp = new MSExcel.Application
                     {
                         Visible = false//是打开可见
@@ -428,7 +430,8 @@ namespace ZSKD.Indelb.ReciveBill
                         }
 
                     }
-                    string ResultDirectory = Path.Combine(ExcelPath, "TOCBackup\\" + DateTime.Now.ToString("yyyyMMdd"));//处理完后文件保存到这里
+                    string ERPBackUp = Convert.ToString(ConfigurationManager.AppSettings["ERPBackUp"].ToString().Trim());
+                    string ResultDirectory = ERPBackUp;//处理完后文件保存到这里
                     if (!Directory.Exists(ResultDirectory))//如果不存在就创建文件夹  
                     {
                         Directory.CreateDirectory(ResultDirectory);

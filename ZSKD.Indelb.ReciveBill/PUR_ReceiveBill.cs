@@ -104,6 +104,7 @@ namespace ZSKD.Indelb.ReciveBill
                 //调用查询接口 
                 List<List<object>> reqResult = client.Execute<List<List<object>>>("Kingdee.BOS.WebApi.ServicesStub.DynamicFormService.ExecuteBillQuery"
                     , paramInfo);
+
                 return reqResult;
             }
             catch (Exception e)
