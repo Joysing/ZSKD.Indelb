@@ -186,9 +186,9 @@ namespace ZSKD.Indelb.Plugins
 
             JObject json_QXX = (JObject)JsonConvert.DeserializeObject(Convert.ToString(response_QXX.Content));
             string errcode_QXX = Convert.ToString(json_QXX["errcode"].ToString());
-            if ("errcode_QXX".Equals(errcode_QXX)) {
+            if (!"0".Equals(errcode_QXX)) {
 
-                throw new Exception("星空配置钉钉的群消息token与签名不一样，请检查");
+                throw new Exception("星空配置钉钉的群消息assesstoken与签名不一样，请检查");
 
             }
 
