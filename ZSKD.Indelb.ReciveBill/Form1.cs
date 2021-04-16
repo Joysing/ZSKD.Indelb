@@ -24,7 +24,7 @@ namespace ZSKD.Indelb.ReciveBill
     public partial class Form1 : Form
     {
         private static ILog log = LogManager.GetLogger("MainForm");
-        public ApiClient client;//连接
+        public K3CloudApiClient client;//连接
         bool debug;//是否调试模式
         bool Executed;//是否执行完毕
         public static System.Timers.Timer aTimer;
@@ -50,8 +50,6 @@ namespace ZSKD.Indelb.ReciveBill
             outPutReciveBill();
             ImportData();
             Executed = true;
-
-
         }
         private void checkIsCompletedAll(object source, System.Timers.ElapsedEventArgs e)
         {
@@ -63,10 +61,6 @@ namespace ZSKD.Indelb.ReciveBill
             }
         }
 
-        private void button1_Click(object sender, EventArgs e)
-        {
-            outPutReciveBill();
-        }
         public bool Login()
         {
             log.Info("登录中...");
@@ -78,14 +72,11 @@ namespace ZSKD.Indelb.ReciveBill
                 string sSERVER = ConfigurationManager.ConnectionStrings["SERVER"].ToString().Trim();
                 string sDBID = ConfigurationManager.ConnectionStrings["DBID"].ToString().Trim();
                 string sUserName = ConfigurationManager.ConnectionStrings["UID"].ToString().Trim();
-                string sPassword = ConfigurationManager.ConnectionStrings["PWD"].ToString().Trim();
                 string sAppId = ConfigurationManager.ConnectionStrings["AppId"].ToString().Trim();
                 string sAppSecret = ConfigurationManager.ConnectionStrings["AppSecret"].ToString().Trim();
-                if (!sSERVER.Equals("") && !sDBID.Equals("") && !sUserName.Equals("") && !sPassword.Equals(""))
+                if (!sSERVER.Equals("") && !sDBID.Equals("") && !sUserName.Equals(""))
                 {
-                    client = new ApiClient(sSERVER);
-                    object[] _objInfo = new object[] { sDBID, sUserName, sPassword, 2052 };
-
+                    client = new K3CloudApiClient(sSERVER);
                     var ret = client.LoginByAppSecret(sDBID, sUserName, sAppId, sAppSecret, 2052);
                     //var ret = client.Execute<string>("Kingdee.BOS.WebApi.ServicesStub.AuthService.ValidateUser", _objInfo);
                     result = JObject.Parse(ret)["LoginResultType"].Value<string>();
@@ -124,7 +115,13 @@ namespace ZSKD.Indelb.ReciveBill
         }
         private void outPutReciveBill()
         {
-            List<List<object>> Bills = PUR_ReceiveBill.GetAllBill(client, "FDocumentStatus = 'C' and FCheckInComing = 1 and F_PAEZ_Exported=0");//todo F_PAEZ_Exported=0 未导出
+            List<List<object>> Bills = PUR_ReceiveBill.GetAllBill(client, "FDocumentStatus = 'C' and FCheckInComing = 1 and F_PAEZ_Exported=0");//F_PAEZ_Exported=0 未导出
+            if (Bills.Count==0)
+            {
+                log.Info("没有可以导出的收料通知单。");
+                return;
+            }
+
             MSExcel.Application excelApp = new MSExcel.Application
             {
                 Visible = false//是打开可见
@@ -134,60 +131,76 @@ namespace ZSKD.Indelb.ReciveBill
             MSExcel._Workbook _workbook = _workbooks.Add(System.Reflection.Missing.Value);
             MSExcel._Worksheet whs = _workbook.Sheets[1];//获取第1张工作表
 
-            whs.Name = "Sheet1";
-            //headline
-//            进货单号 产品编号    物料名称 物料规格    厂商 报检数量    厂商编码 物料分类名称  实收数量 不良数 QIS报检单号
-//DD20200901 - 001  1.10.035 - 1053   灯盒 ABS，84 * 58 * 13，白色（同顺德环威XC - 40J - 06 - 06)	顺德区容桂广大塑料制品厂    157 2.0085  塑料件 0   0   20200901084512001
-            whs.Cells[1, 1] = "进货单号";
-            whs.Cells[1, 2] = "产品编号";
-            whs.Cells[1, 3] = "物料名称";
-            whs.Cells[1, 4] = "物料规格";
-            whs.Cells[1, 5] = "厂商";
-            whs.Cells[1, 6] = "报检数量";
-            whs.Cells[1, 7] = "厂商编码";
-            whs.Cells[1, 8] = "物料分类名称";
-            whs.Cells[1, 9] = "实收数量";
-            whs.Cells[1, 10] = "不良数";
-            whs.Cells[1, 11] = "QIS报检单号";
-
-            Dictionary<string, string> BillIDsDic = new Dictionary<string, string>();
-            for (int i=0;i< Bills.Count; i++)
+            try
             {
-                string BillID= Convert.ToString(Bills[i][0]);
-                string BillNo= Convert.ToString(Bills[i][1]);
-                if (!BillIDsDic.ContainsKey(BillID))
+                
+                whs.Name = "Sheet1";
+                //headline
+                whs.Cells[1, 1] = "进货单号";
+                whs.Cells[1, 2] = "产品编号";
+                whs.Cells[1, 3] = "物料名称";
+                whs.Cells[1, 4] = "物料规格";
+                whs.Cells[1, 5] = "厂商";
+                whs.Cells[1, 6] = "报检数量";
+                whs.Cells[1, 7] = "厂商编码";
+                whs.Cells[1, 8] = "物料分类名称";
+                whs.Cells[1, 9] = "实收数量";
+                whs.Cells[1, 10] = "不良数";
+                whs.Cells[1, 11] = "QIS报检单号";
+
+                Dictionary<string, string> BillIDsDic = new Dictionary<string, string>();
+                StringBuilder sbBillNos = new StringBuilder();
+                for (int i = 0; i < Bills.Count; i++)
                 {
-                    BillIDsDic.Add(BillID, BillNo);
+                    string BillID = Convert.ToString(Bills[i][0]);
+                    string BillNo = Convert.ToString(Bills[i][1]);
+                    string FDetailEntity_FSeq = Convert.ToString(Bills[i][11]);
+                    if (!BillIDsDic.ContainsKey(BillID))
+                    {
+                        BillIDsDic.Add(BillID, BillNo);
+                        sbBillNos.Append("\"").Append(BillNo).Append("\",");
+                    }
+                    whs.Cells[i + 2, 1] = BillNo;
+                    whs.Cells[i + 2, 2] = Bills[i][2];
+                    whs.Cells[i + 2, 3] = Bills[i][3];
+                    whs.Cells[i + 2, 4] = Bills[i][4];
+                    whs.Cells[i + 2, 5] = Bills[i][6];
+                    whs.Cells[i + 2, 6] = Bills[i][7];
+                    whs.Cells[i + 2, 7] = Bills[i][5];
+                    whs.Cells[i + 2, 8] = Bills[i][12];
+                    whs.Cells[i + 2, 9] = 0;
+                    whs.Cells[i + 2, 10] = 0;
+                    whs.Cells[i + 2, 11] = "QIS_"+ BillNo+"_" +FDetailEntity_FSeq;
                 }
-                whs.Cells[i+2, 1] = BillNo;
-                whs.Cells[i+2, 2] = Bills[i][2];
-                whs.Cells[i+2, 3] = Bills[i][3];
-                whs.Cells[i+2, 4] = Bills[i][4];
-                whs.Cells[i+2, 5] = Bills[i][6];
-                whs.Cells[i+2, 6] = Bills[i][7];
-                whs.Cells[i+2, 7] = Bills[i][5];
-                whs.Cells[i+2, 8] = "物料分类名称";
-                whs.Cells[i+2, 9] = 0;
-                whs.Cells[i+2, 10] = 0;
-                whs.Cells[i+2, 11] = "QIS报检单号";
+                if (sbBillNos.Length > 0)
+                {
+                    sbBillNos.Remove(sbBillNos.Length - 1, 1); ; //移除掉最后一个","
+                }
+
+                string ERPOUTDirectory = Convert.ToString(ConfigurationManager.AppSettings["ERPOUT"].ToString().Trim());
+                if (!Directory.Exists(ERPOUTDirectory))//如果不存在就创建文件夹  
+                {
+                    Directory.CreateDirectory(ERPOUTDirectory);
+                }
+                string fileName = ERPOUTDirectory + "K3Cloud_DD_" + DateTime.Now.ToString("yyyyMMddHHmmssf") + ".XLS";
+
+                whs.SaveAs(fileName, 51);
+                
+                log.Info("正在更新该订单的同步状态。");
+                PUR_ReceiveBill.ExportedToQIS(client,sbBillNos);
+                //UpdateSyncStatus("PUR_ReceiveBill", BillIDsDic);
             }
-            string ERPOUTDirectory = Convert.ToString(ConfigurationManager.AppSettings["ERPOUT"].ToString().Trim());
-            if (!Directory.Exists(ERPOUTDirectory))//如果不存在就创建文件夹  
+            catch (Exception ex)
             {
-                Directory.CreateDirectory(ERPOUTDirectory);
+                log.Error(ex);
             }
-            string fileName = ERPOUTDirectory + "K3Cloud_DD_" + DateTime.Now.ToString("yyyyMMddHHmmssf") + ".XLS";
-           
-            whs.SaveAs(fileName, 51);
-            //关闭对象
-            Marshal.ReleaseComObject(_workbook);
-            Marshal.ReleaseComObject(whs);
-            excelApp.Quit();
-            GC.Collect();
-
-            log.Info("正在更新该订单的同步状态:");
-            UpdateSyncStatus("PUR_ReceiveBill", BillIDsDic);
-
+            finally {
+                //关闭对象
+                Marshal.ReleaseComObject(_workbook);
+                Marshal.ReleaseComObject(whs);
+                excelApp.Quit();
+                GC.Collect();
+            }
         }
 
         /// <summary>
@@ -241,7 +254,10 @@ namespace ZSKD.Indelb.ReciveBill
                 log.Info(sb);
             }
         }
-
+        private void button1_Click(object sender, EventArgs e)
+        {
+            outPutReciveBill();
+        }
         private void button2_Click(object sender, EventArgs e)
         {
             ImportData();
@@ -290,27 +306,29 @@ namespace ZSKD.Indelb.ReciveBill
                     bool HasSuccess = false;//是否整个文件有导入成功的订单
                     bool HasError = false;//是否整个文件有导入失败的订单
 
-                    log.Info("开始导入QIS返回的Excel:");
                     while (true)
                     {
                         try
                         {
-                            MSExcel.Range rang = (MSExcel.Range)whs.Cells[excelIndex, 25];//ERP收料通知单单号
+                            MSExcel.Range rang = (MSExcel.Range)whs.Cells[excelIndex, 32];//ERP收料通知单单号
                             if (rang.Value != null)
                             {
-                                if ("是".Equals(Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 42]).Value)))//已导出=是，则跳过
-                                {
-                                    continue;
-                                }
+                                //if ("是".Equals(Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 42]).Value)))//已导出=是，则跳过
+                                //{
+                                //    continue;
+                                //}
 
                                 string ERPBillNo = Convert.ToString(rang.Value);
-                                string PrevFBillNo = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex - 1, 25]).Value);//上一行的ERP收料通知单单号
-                                string NextFBillNo = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex + 1, 25]).Value);//下一行的ERP收料通知单单号
+                                string PrevFBillNo = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex - 1, 32]).Value);//上一行的ERP收料通知单单号
+                                string NextFBillNo = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex + 1, 32]).Value);//下一行的ERP收料通知单单号
                                 string QISBillNo = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 1]).Value);//QIS检验单号
                                 string FDate = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 2]).Value);
-                                string MaterialNumber = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 6]).Value);
-                                string ComputerResult = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 13]).Value);//电脑判定
-                                double RealQty = Convert.ToDouble(((MSExcel.Range)whs.Cells[excelIndex, 15]).Value);
+                                string MaterialNumber = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 7]).Value);
+                                string ComputerResult = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 15]).Value);//电脑判定
+                                double CheckQty = Convert.ToDouble(((MSExcel.Range)whs.Cells[excelIndex, 14]).Value);//批量数（报检数量）
+                                double RealQty = Convert.ToDouble(((MSExcel.Range)whs.Cells[excelIndex, 22]).Value);//实收数量（合格数量）
+                                string CheckResult = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 16]).Value);//检验结果
+                                double unqualifiedQty = CheckQty - RealQty;//不合格数量
 
                                 //ERP收料通知单单号和上一行不同，则是另一张单据
                                 if (!PrevFBillNo.Equals(ERPBillNo))
@@ -321,7 +339,7 @@ namespace ZSKD.Indelb.ReciveBill
 
                                 string NeedPushEntryIds = "";
                                 //excel的一行是相同物料合并数量的，在ERP查源单，查出来可能有多行物料
-                                List<List<object>> Bills = PUR_ReceiveBill.GetAllBill(client, "FBillNo='" + ERPBillNo + "'" + " and FMaterialID.FNumber='" + MaterialNumber + "'");//todo F_PAEZ_Exported=1 未导出
+                                List<List<object>> Bills = PUR_ReceiveBill.GetAllBill(client, "FBillNo='" + ERPBillNo + "'" + " and FMaterialID.FNumber='" + MaterialNumber + "'");
                                 for (int i = 0; i < Bills.Count; i++)
                                 {
                                     double FQty = 0;
@@ -333,15 +351,15 @@ namespace ZSKD.Indelb.ReciveBill
                                     double NoCheckQty = FActReceiveQty - FCheckJoinQty;  //剩余未检验数量
                                     string SrcBillTypeID = Convert.ToString(Bills[i][10]);
                                     string SrcSeq = Convert.ToString(Bills[i][11]);
-                                    if (NoCheckQty > RealQty)
+                                    if (NoCheckQty > CheckQty)
                                     {
-                                        FQty = RealQty;
+                                        FQty = CheckQty;
                                     }
                                     else
                                     {
                                         FQty = NoCheckQty;
                                     }
-                                    RealQty = RealQty - FQty;
+                                    CheckQty = CheckQty - FQty;
                                     if (FQty <= 0) continue;
                                     NeedPushEntryIds = NeedPushEntryIds + SrcEntryID + ",";
                                     //一行下推成一单
@@ -352,9 +370,18 @@ namespace ZSKD.Indelb.ReciveBill
                                         List<List<object>> InspectBills = QM_InspectBill.GetAllBill(client, "FID=" + NewBillId);
                                         if (InspectBills.Count > 0)
                                         {
+                                            string NewBillNo = Convert.ToString(InspectBills[0][1]);
+
+                                            JArray MultiLanguageTextArr = new JArray();
+                                            JObject MultiLanguageTextJson = new JObject();
+                                            MultiLanguageTextJson.Add("Key", 2052);
+                                            MultiLanguageTextJson.Add("Value", "QIS导入，单号" + QISBillNo);
+
                                             JObject Entry = new JObject();
                                             ModelJson.Add("FID", Convert.ToString(InspectBills[0][0]));
                                             ModelJson.Add("FEntity", FOrderEntrys);
+                                            ModelJson.Add("FDescription", "QIS导入，单号" + QISBillNo);
+
                                             FOrderEntrys.Add(Entry);
                                             Entry.Add("FEntryID", Convert.ToString(InspectBills[0][2]));
                                             Entry.Add("FInspectQty", FQty);
@@ -362,8 +389,55 @@ namespace ZSKD.Indelb.ReciveBill
                                             if (!"合格".Equals(ComputerResult))
                                             {
                                                 Entry.Add("FInspectResult", "2");//检验结果=不合格
+                                                JArray FPolicyDetailEntrys = new JArray();//使用决策 子单据体
+                                                JObject FPolicyDetailEntry1 = new JObject();
+                                                JObject FPolicyDetailEntry2 = new JObject();
+                                                switch (CheckResult)
+                                                {
+                                                    case "退货":
+                                                        break;
+                                                    case "让步接收":
+                                                        Entry.Add("FPolicyDetail", FPolicyDetailEntrys);
+                                                        FPolicyDetailEntrys.Add(FPolicyDetailEntry1);
+                                                        FPolicyDetailEntry1.Add("FUsePolicy","A");
+                                                        FPolicyDetailEntry1.Add("FPolicyQty", RealQty);
+
+                                                        FPolicyDetailEntrys.Add(FPolicyDetailEntry2);
+                                                        FPolicyDetailEntry2.Add("FUsePolicy", "B");
+                                                        FPolicyDetailEntry2.Add("FPolicyQty", unqualifiedQty);
+
+                                                        break;
+                                                    case "挑选":
+                                                        Entry.Add("FPolicyDetail", FPolicyDetailEntrys);
+                                                        FPolicyDetailEntrys.Add(FPolicyDetailEntry1);
+                                                        FPolicyDetailEntry1.Add("FUsePolicy", "A");
+                                                        FPolicyDetailEntry1.Add("FPolicyQty", RealQty);
+
+                                                        FPolicyDetailEntrys.Add(FPolicyDetailEntry2);
+                                                        FPolicyDetailEntry2.Add("FUsePolicy", "E");
+                                                        FPolicyDetailEntry2.Add("FPolicyQty", unqualifiedQty);
+                                                        break;
+                                                }
                                             }
+                                            else if ("合格".Equals(ComputerResult)&&"内部原因".Equals(CheckResult)) {
+                                                JArray FPolicyDetailEntrys = new JArray();//使用决策 子单据体
+                                                JObject FPolicyDetailEntry1 = new JObject();
+                                                Entry.Add("FPolicyDetail", FPolicyDetailEntrys);
+                                                FPolicyDetailEntrys.Add(FPolicyDetailEntry1);
+                                                FPolicyDetailEntry1.Add("FUsePolicy", "A");
+                                                FPolicyDetailEntry1.Add("FPolicyQty", RealQty);
+                                                FPolicyDetailEntry1.Add("FMemo1", "内部原因");
+
+                                                break;
+                                            }
+                                            
+
+
                                             Dictionary<string, object> ImportResult = QM_InspectBill.SaveBill(client, new StringBuilder(ModelJson.ToString()), new List<string>(ordenoList));
+                                            //提交审核检验单
+                                            CommonOperate commonOperate = new CommonOperate();
+                                            commonOperate.SubmitBill(client, "QM_InspectBill", new StringBuilder("\"" + NewBillNo + "\""));
+                                            commonOperate.AuditBill(client, "QM_InspectBill", new StringBuilder("\"" + NewBillNo + "\""));
                                             ModelJson = new JObject();
                                             FOrderEntrys = new JArray();
                                             if (!Convert.ToBoolean(ImportResult["IsSuccess"]))
@@ -391,29 +465,8 @@ namespace ZSKD.Indelb.ReciveBill
                                 //判断 当前是一张单据的最后一条分录
                                 if (((MSExcel.Range)whs.Cells[excelIndex + 1, 1]).Value == null || !ERPBillNo.Equals(NextFBillNo))
                                 {
-                                    //if (FOrderEntrys.Count > 0)
-                                    //{
-
-                                    //    Dictionary<string, object> ImportResult = QM_InspectBill.SaveBill(client, new StringBuilder(ModelJson.ToString()), new List<string>(ordenoList));
-                                    //    if (!Convert.ToBoolean(ImportResult["IsSuccess"]))
-                                    //    {
-                                    //        HasError = true;
-                                    //        IsAllSuccess = false;
-                                    //    }
-                                    //    else
-                                    //    {
-                                    //        HasSuccess = true;
-                                    //    }
-                                    //}
-
-                                    //ordenoList = new List<string>();
-                                    //ModelArray = new JArray();
-                                    //ModelJson = new JObject();
-                                    //FOrderEntrys = new JArray();
+                           
                                 }
-                                //excel已导出改为“是”
-                                //whs.Cells[excelIndex, 42] = "是";
-                                //whs.Cells[excelIndex, 43] = "导出正常";
                             }
                             else
                             {
@@ -422,7 +475,7 @@ namespace ZSKD.Indelb.ReciveBill
                         }
                         catch (Exception ex)
                         {
-                            log.Error(ex.Message);
+                            log.Error(ex);
                         }
                         finally
                         {
@@ -430,8 +483,8 @@ namespace ZSKD.Indelb.ReciveBill
                         }
 
                     }
-                    string ERPBackUp = Convert.ToString(ConfigurationManager.AppSettings["ERPBackUp"].ToString().Trim());
-                    string ResultDirectory = ERPBackUp;//处理完后文件保存到这里
+                    string ERPBackup = Convert.ToString(ConfigurationManager.AppSettings["ERPBackup"].ToString().Trim());
+                    string ResultDirectory = ERPBackup;//处理完后文件保存到这里
                     if (!Directory.Exists(ResultDirectory))//如果不存在就创建文件夹  
                     {
                         Directory.CreateDirectory(ResultDirectory);
@@ -447,12 +500,11 @@ namespace ZSKD.Indelb.ReciveBill
                 }
                 catch (Exception ex)
                 {
-                     log.Error(ex.Message);
+                     log.Error(ex);
                 }
 
             }
             
-
             Executed = true;
         }
 

@@ -29,7 +29,7 @@ namespace ZSKD.Indelb.ReciveBill
                 "\"EntryIds\":\""+EntryIds+"\","+
                 //"\"RuleId\":\"\","+
                 //"\"TargetBillTypeId\":\"" +
-                //"\"TargetOrgId\":0," +
+                "\"TargetOrgId\":100102," + //固定广东英得尔 100.1
                 "\"TargetFormId\":\"QM_InspectBill\"," +
                 "\"IsEnableDefaultRule\":true," +
                 "\"IsDraftWhenSaveFail\":false" +
@@ -96,7 +96,7 @@ namespace ZSKD.Indelb.ReciveBill
                 "\"StartRow\":"+ StartRow + ","+// 分页取数开始行索引，从0开始，例如每页10行数据，第2页开始是10，第3页开始是20
                 "\"FilterString\":\""+Filter+"\","+// 过滤条件 
                 "\"FieldKeys\":\"FID,FBillNo,FMaterialID.FNumber,FMaterialID.FName,FMaterialID.FSpecification,FSUPPLIERID.FNumber,FSUPPLIERID.FName,FActReceiveQty" +
-                ",FDetailEntity_FEntryID,FCheckJoinQty,FBillTypeID,FDetailEntity_FSeq" +
+                ",FDetailEntity_FEntryID,FCheckJoinQty,FBillTypeID,FDetailEntity_FSeq,F_ora_MatGroup" +
                 "\"}"
             };
             try
@@ -112,6 +112,44 @@ namespace ZSKD.Indelb.ReciveBill
                 log.Error(e);
             }
             return null;
+        }
+
+        /// <summary>
+        /// 调用ExportedToQIS操作
+        /// </summary>
+        /// <param name="Numbers">需要被操作的单据</param>
+        public static bool ExportedToQIS(K3CloudApiClient client, StringBuilder Numbers)
+        {
+            log.Info("正在修改单据已导出QIS状态：" + Numbers);
+
+            string sContent = "{\"Numbers\":[" + Numbers + "]}";
+            //string responseStatus = client.Execute<string>("Kingdee.BOS.WebApi.ServicesStub.DynamicFormService.ExportedToQIS", new object[] { FormID, sContent });
+            string responseStatus=client.ExcuteOperation("PUR_ReceiveBill", "ExportedToQIS", sContent);
+            JObject jsonResponseStatus = (JObject)JsonConvert.DeserializeObject(responseStatus);
+
+            if (Convert.ToBoolean(jsonResponseStatus["Result"]["ResponseStatus"]["IsSuccess"].ToString()))
+            {
+                log.Info("修改单据已导出QIS状态成功！");
+                return true;
+            }
+            else
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine(" 修改单据已导出QIS状态失败!");
+                List<string> errorsFIDIndex = new List<string>();
+                JArray errorsJson = JArray.Parse(Convert.ToString(jsonResponseStatus["Result"]["ResponseStatus"]["Errors"]));
+                for (int i = 0; i < errorsJson.Count; i++)
+                {
+                    string Message = errorsJson[i]["Message"].ToString();//错误信息
+                    string FieldName = errorsJson[i]["FieldName"].ToString();//出错的字段
+
+                    if (!"".Equals(FieldName)) sb.Append(" 出错字段：").Append(FieldName);
+                    sb.Append(" 错误信息：").AppendLine(Message);
+                }
+                log.Error(sb);
+                return false;
+            }
+
         }
     }
 }
