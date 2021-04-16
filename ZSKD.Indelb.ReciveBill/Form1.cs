@@ -424,11 +424,8 @@ namespace ZSKD.Indelb.ReciveBill
                                                 JObject FPolicyDetailEntry1 = new JObject();
                                                 Entry.Add("FPolicyDetail", FPolicyDetailEntrys);
                                                 FPolicyDetailEntrys.Add(FPolicyDetailEntry1);
-                                                FPolicyDetailEntry1.Add("FUsePolicy", "A");
-                                                FPolicyDetailEntry1.Add("FPolicyQty", RealQty);
+                                                FPolicyDetailEntry1.Add("FDetailID", Convert.ToString(InspectBills[0][3]));
                                                 FPolicyDetailEntry1.Add("FMemo1", "内部原因");
-
-                                                break;
                                             }
                                             
 

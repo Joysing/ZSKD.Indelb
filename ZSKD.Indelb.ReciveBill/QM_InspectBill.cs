@@ -132,7 +132,7 @@ namespace ZSKD.Indelb.ReciveBill
                 "\"Limit\":"+ Limit + ","+// 分页取数每页允许获取的数据，最大不能超过2000
                 "\"StartRow\":"+ StartRow + ","+// 分页取数开始行索引，从0开始，例如每页10行数据，第2页开始是10，第3页开始是20
                 "\"FilterString\":\""+Filter+"\","+// 过滤条件 
-                "\"FieldKeys\":\"FID,FBillNo,FEntity_FEntryID" +
+                "\"FieldKeys\":\"FID,FBillNo,FEntity_FEntryID,FPolicyDetail_FDetailID" +
                 "\"}"
             };
             try
