@@ -115,7 +115,7 @@ namespace ZSKD.Indelb.ReciveBill
         }
         private void outPutReciveBill()
         {
-            List<List<object>> Bills = PUR_ReceiveBill.GetAllBill(client, "FDocumentStatus = 'C' and FCheckInComing = 1 ");//F_PAEZ_Exported=0 未导出
+            List<List<object>> Bills = PUR_ReceiveBill.GetAllBill(client, "FDocumentStatus = 'C' and FCheckInComing = 1 and F_PAEZ_Exported=0");//F_PAEZ_Exported=0 未导出
             if (Bills.Count==0)
             {
                 log.Info("没有可以导出的收料通知单。");
