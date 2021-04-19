@@ -37,9 +37,9 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
     
 def AfterExecuteOperationTransaction(e):
-    #生产订单保存后生成PI号
+    #销售订单保存后生成PI号
     for item in e.DataEntitys:
         FID = str(item["Id"]);
-        sqlString = "/*dialect*/update t2 set F_ora_PINumber = t1.FBillNo+'-'+Convert(varchar(6),t2.FSeq) from T_PRD_MO t1 join T_PRD_MOENTRY t2 on t1.FID=t2.FID " 
-        sqlString=sqlString+" and t1.FID = "+FID
+        sqlString = "/*dialect*/update t2 set F_ora_PINumber = t1.FBillNo+'-'+Convert(varchar(6),t2.FSeq) from T_SAL_ORDER t1 join T_SAL_ORDERENTRY t2 on t1.FID=t2.FID " 
+        sqlString=sqlString+" and isnull(t2.F_ora_PINumber,'')='' and t1.FID = "+FID
         rows = DBUtils.Execute(this.Context, sqlString);

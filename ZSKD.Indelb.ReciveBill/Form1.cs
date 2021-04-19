@@ -26,7 +26,7 @@ namespace ZSKD.Indelb.ReciveBill
         private static ILog log = LogManager.GetLogger("MainForm");
         public K3CloudApiClient client;//连接
         bool debug;//是否调试模式
-        bool Executed;//是否执行完毕
+        public static bool Executed;//是否执行完毕
         public static System.Timers.Timer aTimer;
         public Form1()
         {
@@ -48,7 +48,7 @@ namespace ZSKD.Indelb.ReciveBill
                 aTimer.Enabled = true;
             }
             outPutReciveBill();
-            ImportData();
+            //ImportData();
             Executed = true;
         }
         private void checkIsCompletedAll(object source, System.Timers.ElapsedEventArgs e)
@@ -115,7 +115,7 @@ namespace ZSKD.Indelb.ReciveBill
         }
         private void outPutReciveBill()
         {
-            List<List<object>> Bills = PUR_ReceiveBill.GetAllBill(client, "FDocumentStatus = 'C' and FCheckInComing = 1 and F_PAEZ_Exported=0");//F_PAEZ_Exported=0 未导出
+            List<List<object>> Bills = PUR_ReceiveBill.GetAllBill(client, "FDocumentStatus = 'C' and FCheckInComing = 1 ");//F_PAEZ_Exported=0 未导出
             if (Bills.Count==0)
             {
                 log.Info("没有可以导出的收料通知单。");
@@ -148,6 +148,7 @@ namespace ZSKD.Indelb.ReciveBill
                 whs.Cells[1, 10] = "不良数";
                 whs.Cells[1, 11] = "QIS报检单号";
 
+                string DateTimeStr = DateTime.Now.ToString("yyyyMMddHHmmssf");
                 Dictionary<string, string> BillIDsDic = new Dictionary<string, string>();
                 StringBuilder sbBillNos = new StringBuilder();
                 for (int i = 0; i < Bills.Count; i++)
@@ -170,7 +171,7 @@ namespace ZSKD.Indelb.ReciveBill
                     whs.Cells[i + 2, 8] = Bills[i][12];
                     whs.Cells[i + 2, 9] = 0;
                     whs.Cells[i + 2, 10] = 0;
-                    whs.Cells[i + 2, 11] = "QIS_"+ BillNo+"_" +FDetailEntity_FSeq;
+                    whs.Cells[i + 2, 11] = "'"+DateTimeStr + (i+1).ToString("000");
                 }
                 if (sbBillNos.Length > 0)
                 {
@@ -182,7 +183,7 @@ namespace ZSKD.Indelb.ReciveBill
                 {
                     Directory.CreateDirectory(ERPOUTDirectory);
                 }
-                string fileName = ERPOUTDirectory + "K3Cloud_DD_" + DateTime.Now.ToString("yyyyMMddHHmmssf") + ".XLS";
+                string fileName = ERPOUTDirectory + "K3Cloud_DD_" + DateTimeStr + ".XLS";
 
                 whs.SaveAs(fileName, 51);
                 

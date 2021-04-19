@@ -96,6 +96,7 @@ namespace ZSKD.Indelb.ReciveBill
             catch (Exception e)
             {
                 log.Error(e);
+                Form1.Executed = true;
             }
             return result;
         }
@@ -145,6 +146,7 @@ namespace ZSKD.Indelb.ReciveBill
             catch (Exception e)
             {
                 log.Error(e);
+                Form1.Executed = true;
             }
             return null;
         }
