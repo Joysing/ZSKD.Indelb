@@ -61,8 +61,9 @@ from Kingdee.BOS.Util.OperateOptionUtils import *
 def AfterBarItemClick(e):
     if e.BarItemKey=="ora_tbCreateRecNotice":
         BillID=this.View.Model.DataObject["Id"]
-        sql="/*dialect*/ select t1.FSeq,t2.FSID,t2.FSBillID,t1.FACTRECEIVEQTY from T_PUR_ReceivePlanEntry t1 "
+        sql="/*dialect*/ select t1.FSeq,t2.FSID,t2.FSBillID,t1.FACTRECEIVEQTY,t1.FID,t1.FEntryID from T_PUR_ReceivePlanEntry t1 "
         sql=sql+"\n join T_PUR_ReceivePlanEntry_LK t2 on t1.FEntryID=t2.FEntryID and t1.FID="+str(BillID)
+        sql=sql+"\n join T_PUR_ReceivePlanEntry_R t3 on t1.FEntryID=t3.FEntryID and t3.FENTRYSTATUS='A'"
         SQLRows=DBServiceHelper.ExecuteDynamicObject(this.Context,sql)
         
         Message=""
@@ -72,8 +73,13 @@ def AfterBarItemClick(e):
                 Message=Message+"第"+str(SQLRow["FSeq"])+"行生成失败："+PushResult
             else:
                 Message=Message+"第"+str(SQLRow["FSeq"])+"行生成成功："+PushResult
+                sql="/*dialect*/"
+                sql=sql+"\n update T_PUR_ReceivePlanEntry_R set FENTRYSTATUS='B' where FEntryID="+str(SQLRow["FEntryID"])
+                DBServiceHelper.Execute(this.Context,sql)
         if Message<>"":
             this.View.ShowMessage(Message)
+        
+        this.View.UpdateView("FDetailEntity")
         
 #采购订单下推到送货通知单
 #fid=采购订单FID，EntryId=采购订单FEntryId，FQty=下推数量

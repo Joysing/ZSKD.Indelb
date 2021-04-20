@@ -109,15 +109,13 @@ def AfterBindData(e):
     #获取单据体表格的元数据及外观
     entity=_currInfo.GetEntity("FEntity")
     entityApp=_currLayout.GetEntityAppearance("FEntity")
-    ClearAllColumn()
-    AddColumns()
-    FilterFormCallBack(1)
+    OpenFilterFormByClick()
 
 def AfterBarItemClick(e):
     if e.BarItemKey=="ora_tbRefersh":
-        ClearAllColumn()
-        AddColumns()
-        FilterFormCallBack(1)
+        FilterFormCallBack(_gFormResult)
+    elif e.BarItemKey=="ora_tbFilter":
+        OpenFilterFormByClick()
 
 # 清除全部字段
 def ClearAllColumn():
@@ -143,24 +141,18 @@ def OpenFilterFormByClick():
 
 
 def FilterFormCallBack(formResult):
+    global _gFormResult
+    _gFormResult=formResult
+    ClearAllColumn()
+    AddColumns()
     FStartDateStr=str(this.View.Model.DataObject["FStartDate"])
     # 执行查询的sql
     sql="/*dialect*/"
     sql=sql+"\n zskd_sp_CGHHDTGJB '"+FStartDateStr+"'  "
-    # sql=sql+"\n select mat.FNUMBER 物料代码,mat_l.FNAME 物料名称                                           "
-    # sql=sql+"\n from T_BD_MATERIAL mat                                                                     "
-    # sql=sql+"\n join T_BD_MATERIAL_L mat_l on mat_l.FMATERIALID=mat.FMATERIALID and mat_l.FLOCALEID=2052   "
-    
-
-    # global gFormResult
-    # gFormResult=formResult
-    # if formResult <> None and formResult.ReturnData <> None :#and formResult.ReturnData is FilterParameter)
-       # if formResult.ReturnData.CustomFilter is not None:
-           # FMaterialID=formResult.ReturnData.CustomFilter["FMaterialID"];
-           # if FMaterialID <> None:
-               # sql=sql+" where mat.FMATERIALID="+str(FMaterialID["Id"])
+    # 条件过滤
+    if formResult <> None and formResult.ReturnData <> None:
+           sql=sql+",'"+formResult.ReturnData.FilterString+"'"
         
-    
     dt = DBUtils.ExecuteDataSet(this.Context,sql).Tables[0];
     if dt.Rows.Count>0:
         entity = this.View.BillBusinessInfo.GetEntity("FEntity"); #Entity
@@ -168,21 +160,21 @@ def FilterFormCallBack(formResult):
         rows.Clear();
         for i in range(0,dt.Rows.Count):
             row = de.DynamicObject(entity.DynamicObjectType)
-            row["FMaterialNumber"] = dt.Rows[i]["物料编码"]
-            row["FMaterialName"] = dt.Rows[i]["物料名称"]
-            row["FMaterialSpec"] = dt.Rows[i]["物料规格"]
-            row["FReceiveAdvanceDays"] = dt.Rows[i]["采购提前期"]
-            row["FPurchaser"] = dt.Rows[i]["采购负责人"]
-            row["FPurSupplier"] = dt.Rows[i]["采购供应商"]
-            row["FStockUnit"] = dt.Rows[i]["库存计量单位"]
-            row["FStockQty"] = dt.Rows[i]["库存数"]
-            row["FOnWayQty"] = dt.Rows[i]["在途数"]
-            row["FTotalDemandQty"] = dt.Rows[i]["总需求数"]
-            row["FGrossDemandQty"] = dt.Rows[i]["当日毛需求"]
-            row["FNetDemandQty"] = dt.Rows[i]["当日净需求"]
+            row["FMaterialNumber"] = dt.Rows[i]["FMaterialNumber"]
+            row["FMaterialName"] = dt.Rows[i]["FMaterialName"]
+            row["FMaterialSpec"] = dt.Rows[i]["FMaterialSpec"]
+            row["FReceiveAdvanceDays"] = dt.Rows[i]["FReceiveAdvanceDays"]
+            row["FPurchaser"] = dt.Rows[i]["FPurchaser"]
+            row["FPurSupplier"] = dt.Rows[i]["FPurSupplier"]
+            row["FStockUnit"] = dt.Rows[i]["FStockUnit"]
+            row["FStockQty"] = dt.Rows[i]["FStockQty"]
+            row["FOnWayQty"] = dt.Rows[i]["FOnWayQty"]
+            row["FTotalDemandQty"] = dt.Rows[i]["FTotalDemandQty"]
+            row["FGrossDemandQty"] = dt.Rows[i]["FGrossDemandQty"]
+            row["FNetDemandQty"] = dt.Rows[i]["FNetDemandQty"]
             for FDemandQtyDayIndex in range(1,101):
                 row["FDemandQtyDay"+str(FDemandQtyDayIndex)] = dt.Rows[i]["第"+str(FDemandQtyDayIndex)+"天"]
-            row["FLastGrossDemandQty"] = dt.Rows[i]["之后合计"]
+            row["FLastGrossDemandQty"] = dt.Rows[i]["FLastGrossDemandQty"]
             rows.Add(row)
     this.View.UpdateView("FEntity")
 
@@ -220,17 +212,3 @@ def AddColumns():
     _currInfo.GetDynamicObjectType(True)
     this.Model.CreateNewData()
     
-def AddColumns2():
-    #添加字段
-    AddField("FEntity","FMaterialNumber","物料编码2",150,80)
-    AddField("FEntity","FMaterialName","物料名称2",150,80)
-        
-    #根据新的元数据，重构单据体表格列
-    grid=this.View.GetControl("FEntity")
-    grid.SetAllowLayoutSetting(False)#列按照索引显示
-    listAppearance=_currLayout.GetEntityAppearance("FEntity")
-    grid.CreateDyanmicList(listAppearance)
-    
-    #使用最新的元数据，重新界面数据包
-    _currInfo.GetDynamicObjectType(True)
-    this.Model.CreateNewData()

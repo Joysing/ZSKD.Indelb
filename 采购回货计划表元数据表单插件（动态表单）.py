@@ -93,6 +93,7 @@ def AfterBindData(e):
     #获取单据体表格的元数据及外观
     entity=_currInfo.GetEntity("FEntity")
     entityApp=_currLayout.GetEntityAppearance("FEntity")
+    AddColumns()
     OpenFilterFormByClick()
 
 #添加字段
@@ -119,39 +120,22 @@ def AddField(entityKey,fieldKey,fieldName,Width,LabelWidth):
     _currLayout.Add(fldApp)
 
 def OpenFilterFormByClick():
-    #全局变量
-    global FOrdDefStockID1
-    global FOrdDefStockID2
-    global FOrdDefStockID3
 
-    FOrdDefStockID1="0"
-    FOrdDefStockID2="0"
-    FOrdDefStockID3="0"
-    #读取系统参数数据包
-    parameterData=SystemParameterServiceHelper.Load(this.Context,1,0,"SAL_SystemParameter")
-    #从系统参数数据包中获取某一个参数
-    if parameterData<>None:
-        if parameterData.DynamicObjectType.Properties.ContainsKey("FOrdDefStockID1") and parameterData["FOrdDefStockID1"]<>None:
-            FOrdDefStockID1=str(parameterData["FOrdDefStockID1"]["Id"])
-        if parameterData.DynamicObjectType.Properties.ContainsKey("FOrdDefStockID2") and parameterData["FOrdDefStockID2"]<>None:
-            FOrdDefStockID2=str(parameterData["FOrdDefStockID2"]["Id"])
-        if parameterData.DynamicObjectType.Properties.ContainsKey("FOrdDefStockID3") and parameterData["FOrdDefStockID3"]<>None:
-            FOrdDefStockID3=str(parameterData["FOrdDefStockID3"]["Id"])
-            
     #打开过滤框
-    #listpara = FilterShowParameter();
-    #listpara.FormId = "ora_CGHHJHBYSJFilter"; #打开所需要单据的唯一标示
-    #listpara.ParentPageId = this.View.PageId;
-    #listpara.MultiSelect = False; # 是否多选
-    #listpara.OpenStyle.CacheId = listpara.PageId;
-    #this.View.ShowForm(listpara,FilterFormCallBack);
-    FilterFormCallBack()
-    FillFEntityData()
+    listpara = FilterShowParameter();
+    listpara.FormId = "ora_CGHHJHBYSJFilter"; #打开所需要单据的唯一标示
+    listpara.ParentPageId = this.View.PageId;
+    listpara.MultiSelect = False; # 是否多选
+    listpara.OpenStyle.CacheId = listpara.PageId;
+    this.View.ShowForm(listpara,FilterFormCallBack);
 
 def AfterBarItemClick(e):
     if e.BarItemKey=="ora_tbCreateDeliveryPlan":
         GenerateDeliveryPlan();
-
+    elif e.BarItemKey=="ora_tbRefresh":
+        FilterFormCallBack(_gFormResult)
+    elif e.BarItemKey=="ora_tbFilter":
+        OpenFilterFormByClick()
 def GenerateDeliveryPlan():
     entity = this.View.BillBusinessInfo.GetEntity("FEntity"); #Entity
     rows = this.Model.GetEntityDataObject(entity); #DynamicObjectCollection
@@ -223,7 +207,7 @@ def GenerateDeliveryPlan():
     FillFEntityData()#生成后刷新数据
     
 #def FilterFormCallBack(formResult):
-def FilterFormCallBack():
+def AddColumns():
     #添加字段
     AddField("FEntity","FDataSource","数据来源",100,80)
     AddField("FEntity","FBillType","单据类型",100,80)
@@ -257,9 +241,9 @@ def FilterFormCallBack():
     _currInfo.GetDynamicObjectType(True);
     this.Model.CreateNewData();
 
-    
-
-def FillFEntityData():
+def FilterFormCallBack(formResult):
+    global _gFormResult
+    _gFormResult=formResult
     this.View.Model.DeleteEntryData("FEntity");#删除行
     # 执行查询的sql
     sql="/*dialect*/"
@@ -267,20 +251,21 @@ def FillFEntityData():
     sql=sql+"\n from T_ENG_BOM where FDOCUMENTSTATUS = 'C' AND FFORBIDSTATUS <> 'B'/* and FUSEORGID=100004*/) bom                                 "
     sql=sql+"\n where OrderIndex=1                                                                                                                "
     sql=sql+"\n                                                                                                                                   "
-    sql=sql+"\n select 'BOM' as '数据来源',bills.BillType as '单据类型',bills.FBillNo as '单据编号','' as 'PI',bills.FQTY as '单据数(库存单位)'   "
-    sql=sql+"\n ,mat1.FNUMBER as '单据物料编码',mat1_l.FNAME as '单据物料名称'                                                                    "
-    sql=sql+"\n ,mat2.FNUMBER as '父件编码',mat2_l.FNAME as '父件名称'                                                                            "
-    sql=sql+"\n ,mat3.FNUMBER as '物料编码',mat3_l.FNAME as '物料名称',mat3_l.FSPECIFICATION as '物料规格',eil.FCAPTION as '物料属性'             "
-    sql=sql+"\n ,bomc2.FNUMERATOR/bomc2.FDENOMINATOR as '用量',bomc2.FSCRAPRATE as '损耗(%)'                                                      "
-    sql=sql+"\n ,CEILING(bills.FQTY*bomc2.FNUMERATOR/bomc2.FDENOMINATOR*(1+bomc2.FSCRAPRATE/100)) as '需求数'                                     "
-    sql=sql+"\n ,isnull(mat1p.FACCULEADTIME,0)+isnull(mat2p.FACCULEADTIME,0) as '固定提前期累加',bills.计算日期 as '计算日期'                     "
+    sql=sql+"\n select 'BOM' as FDataSource,bills.BillType,bills.FBillNo,bills.F_ora_PINumber,convert(float,bills.FQTY) as FQTY                   "
+    sql=sql+"\n ,mat1.FNUMBER as FBillMatNumber,mat1_l.FNAME as FBillMatName                                                                      "
+    sql=sql+"\n ,mat2.FNUMBER as FProductNumber,mat2_l.FNAME as FProductName                                                                      "
+    sql=sql+"\n ,mat3.FNUMBER as FMatNumber,mat3_l.FNAME as FMatName,mat3_l.FSPECIFICATION as FMatSpec,eil.FCAPTION as FMatProp                   "
+    sql=sql+"\n ,convert(float,bomc2.FNUMERATOR/bomc2.FDENOMINATOR) as FUseQty,convert(float,bomc2.FSCRAPRATE) as FScrap                          "
+    sql=sql+"\n ,convert(float,CEILING(bills.FQTY*bomc2.FNUMERATOR/bomc2.FDENOMINATOR*(1+bomc2.FSCRAPRATE/100))) as FDemandQty                    "
+    sql=sql+"\n ,convert(float,isnull(mat1p.FACCULEADTIME,0)+isnull(mat2p.FACCULEADTIME,0)) as FTotalLeadTime,bills.FCalDate                      "
     sql=sql+"\n ,bills.FID,bills.FEntryID,mat3.FMaterialID                                                                                        "
-    sql=sql+"\n ,case when recpe.FEntryID is null then '否' else '是' end '已生成送货计划'                                                        "
-    sql=sql+"\n from (select '生产订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID,t2.FQTY,t2.FPlanFinishDate 计算日期 from T_PRD_MO t1"
-    sql=sql+"\n join T_PRD_MOENTRY t2 on t1.FID=t2.FID                                                                                            "
+    sql=sql+"\n ,case when recpe.FEntryID is null then '否' else '是' end FIsComplete                                                             "
+    sql=sql+"\n into #ResultTable                                                                                                                 "
+    sql=sql+"\n from(select '生产订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID,t2.FQTY,t2.FPlanFinishDate FCalDate,t2.F_ora_PINumber"
+    sql=sql+"\n     from T_PRD_MO t1 join T_PRD_MOENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C'                                            "
     sql=sql+"\n union all                                                                                                                         "
-    sql=sql+"\n select '销售订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID,t2.FQTY,t2.FPLANDELIVERYDATE 计算日期 from T_SAL_ORDER t1 "
-    sql=sql+"\n join T_SAL_ORDERENTRY t2 on t1.FID=t2.FID) bills                                                                                  "
+    sql=sql+"\n select '销售订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID,t2.FQTY,t2.FPLANDELIVERYDATE FCalDate,t2.F_ora_PINumber   "
+    sql=sql+"\n     from T_SAL_ORDER t1 join T_SAL_ORDERENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C') bills                               "
     sql=sql+"\n join t_bd_material mat1 on mat1.FMaterialID=bills.FMATERIALID --成品                                                              "
     sql=sql+"\n join T_BD_MATERIAL_L mat1_l on mat1_l.FMaterialID=mat1.FMATERIALID and mat1_l.FLOCALEID=2052                                      "
     sql=sql+"\n join t_BD_MaterialPlan mat1p on mat1p.FMATERIALID=mat1.FMATERIALID                                                                "
@@ -297,15 +282,23 @@ def FillFEntityData():
     sql=sql+"\n left join T_META_FORMENUMITEM enumitem on enumitem.FID='ac14913e-bd72-416d-a50b-2c7432bbff63' and enumitem.FVALUE=mat3b.FERPCLSID "
     sql=sql+"\n left join T_META_FORMENUMITEM_L eil on eil.FENUMID=enumitem.FENUMID and eil.FLOCALEID=2052                                        "
     sql=sql+"\n left join T_PUR_ReceivePlanEntry recpe on recpe.FDEMANDBILLID=bills.FID and recpe.FDemandEntryId=bills.FEntryID                   "
-    sql=sql+"\n where bills.FQTY*bomc2.FNUMERATOR/bomc2.FDENOMINATOR*(1+bomc2.FSCRAPRATE/100)>0                                         "
+    sql=sql+"\n where bills.FQTY*bomc2.FNUMERATOR/bomc2.FDENOMINATOR*(1+bomc2.FSCRAPRATE/100)>0                                                   "
+    sql=sql+"\n                                                                                                                                   "
+    sql=sql+"\n select FDataSource '数据来源',BillType '单据类型',FBillNo '单据编号',F_ora_PINumber 'PI',FQTY '单据数(库存单位)'                  "
+    sql=sql+"\n ,FBillMatNumber '单据物料编码',FBillMatName '单据物料名称'                                                                        "
+    sql=sql+"\n ,FProductNumber '父件编码',FProductName '父件名称'                                                                                "
+    sql=sql+"\n ,FMatNumber '物料编码',FMatName '物料名称',FMatSpec '物料规格',FMatProp '物料属性'                                                "
+    sql=sql+"\n ,FUseQty '用量',FScrap '损耗(%)'                                                                                                  "
+    sql=sql+"\n ,FDemandQty '需求数'                                                                                                              "
+    sql=sql+"\n ,FTotalLeadTime '固定提前期累加',FCalDate '计算日期'                                                                              "
+    sql=sql+"\n ,FID,FEntryID,FMaterialID                                                                                                         "
+    sql=sql+"\n ,FIsComplete '已生成送货计划'                                                                                                     "
+    sql=sql+"\n from #ResultTable                                                                                                                 "
    
-    #global gFormResult
-    #gFormResult=formResult
-    #if formResult <> None and formResult.ReturnData <> None :#and formResult.ReturnData is FilterParameter)
-    #    if formResult.ReturnData.CustomFilter is not None:
-    #        FMaterialID=formResult.ReturnData.CustomFilter["FMaterialID"];
-    #        if FMaterialID <> None:
-    #            sql=sql+" where mat.FMATERIALID="+str(FMaterialID["Id"])
+    # 条件过滤
+    if formResult <> None and formResult.ReturnData <> None:#and formResult.ReturnData is FilterParameter)
+        if formResult.ReturnData.FilterString<>"":
+           sql=sql+" where "+formResult.ReturnData.FilterString
         
     dt = DBUtils.ExecuteDataSet(this.Context,sql).Tables[0];
     if dt.Rows.Count>0:
@@ -338,6 +331,7 @@ def FillFEntityData():
             row["FIsComplete"] = dt.Rows[i]["已生成送货计划"]
             rows.Add(row);  
     this.View.UpdateView("FEntity");
+
 #采购订单下推到送货计划单
 #fid=采购订单FID，EntryId=采购订单FEntryId，FQty=下推数量，DemandFID=销售订单FID，DemandFEntryId=销售订单FEntryId，DemandFBillNo=销售订单号
 def PushDownDeliveryPlan(fid,EntryId,FQty,DemandFID,DemandFEntryId,DemandFBillNo):
