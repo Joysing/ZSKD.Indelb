@@ -36,8 +36,80 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Kingdee.BOS">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.BOS.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.BOS.App">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.BOS.App.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.BOS.App.Core">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.BOS.App.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.BOS.Business.DynamicForm">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.BOS.Business.DynamicForm.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.BOS.Business.PlugIn">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.BOS.Business.PlugIn.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.BOS.BusinessEntity">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.BOS.BusinessEntity.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.BOS.Contracts">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.BOS.Contracts.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.BOS.Core">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.BOS.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.BOS.DataEntity">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.BOS.DataEntity.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.BOS.ProductModel">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.BOS.ProductModel.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.BOS.ServiceHelper">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.BOS.ServiceHelper.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.BOS.VerificationHelper">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.BOS.VerificationHelper.dll</HintPath>
+    </Reference>
     <Reference Include="Kingdee.BOS.WebApi.Client">
       <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.BOS.WebApi.Client.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.K3.FIN.Business.PlugIn">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.K3.FIN.Business.PlugIn.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.K3.FIN.CA.Business.PlugIn">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.K3.FIN.CA.Business.PlugIn.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.K3.FIN.CA.Common.BusinessEntity">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.K3.FIN.CA.Common.BusinessEntity.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.K3.FIN.CA.ServiceHelper">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.K3.FIN.CA.ServiceHelper.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.K3.FIN.CR.Business.PlugIn">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.K3.FIN.CR.Business.PlugIn.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.K3.FIN.CR.Common.BusinessEntity">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.K3.FIN.CR.Common.BusinessEntity.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.K3.FIN.CR.Common.Core">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.K3.FIN.CR.Common.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.K3.FIN.RPA.PluginsInterface">
+      <HintPath>D:\Program Files (x86)\Kingdee\RPA\Kingdee.K3.FIN.RPA.PluginsInterface.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.K3.SCM.App">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.K3.SCM.App.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.K3.SCM.App.Purchase.Report">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.K3.SCM.App.Purchase.Report.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.K3.SCM.App.Sal.Report">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.K3.SCM.App.Sal.Report.dll</HintPath>
+    </Reference>
+    <Reference Include="Kingdee.K3.SCM.Sal.Report.PlugIn">
+      <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Kingdee.K3.SCM.Sal.Report.PlugIn.dll</HintPath>
     </Reference>
     <Reference Include="log4net, Version=2.0.12.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -46,6 +118,9 @@
     <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>D:\Program Files (x86)\Kingdee\K3Cloud\WebSite\bin\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="RestSharp, Version=106.11.7.0, Culture=neutral, PublicKeyToken=598062e77f915f75, processorArchitecture=MSIL">
+      <HintPath>..\packages\RestSharp.106.11.7\lib\net452\RestSharp.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
