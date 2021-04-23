@@ -146,11 +146,13 @@ def GenerateDeliveryPlan():
         DemandBillNo=str(row["FBillNo"])
         DemandEntryID=int(row["FEntryID"])
         DemandBillID=int(row["FID"])
-        if row["FIsComplete"]=="是":
-            ErrMessage=ErrMessage+"单据"+DemandBillNo+"物料"+row["FMatNumber"]+"已存在送货计划，禁止重复生成\n"
-            continue
-            
+        
         if row["F_ora_CheckBox"] and FDemandQty>0:
+            if row["FIsComplete"]=="是":
+                # ErrMessage=ErrMessage+"单据"+DemandBillNo+"物料"+row["FMatNumber"]+"已存在送货计划，禁止重复生成\n"
+                # continue
+                ErrMessage=ErrMessage+"单据"+DemandBillNo+"物料"+row["FMatNumber"]+"已存在送货计划，现在正在重复生成\n"
+                
             #查询所有该物料的未收料且未送货的采购订单数量，先循环采购订单计算合计数量，如果合计数量小于FDemandQty，提示数量不足。如果数量足够，循环下推每一行
             sql="/*dialect*/"
             sql=sql+"\n select t2.FID,t2.FEntryID,t2.F_ORA_JOINDELVPLANQTY 送货计划关联数量,t2.FQTY-t2.F_ORA_JOINDELVPLANQTY 剩余送货数量,t3.FREMAINRECEIVEQTY 剩余收料数量 "
@@ -204,7 +206,7 @@ def GenerateDeliveryPlan():
     if ErrMessage<>"":
         this.View.ShowMessage(ErrMessage)
         
-    FillFEntityData()#生成后刷新数据
+    FilterFormCallBack(_gFormResult)#生成后刷新数据
     
 #def FilterFormCallBack(formResult):
 def AddColumns():
@@ -281,7 +283,7 @@ def FilterFormCallBack(formResult):
     sql=sql+"\n left join T_BD_MATERIALBASE mat3b on mat3b.FMATERIALID=mat3.FMaterialID                                                           "
     sql=sql+"\n left join T_META_FORMENUMITEM enumitem on enumitem.FID='ac14913e-bd72-416d-a50b-2c7432bbff63' and enumitem.FVALUE=mat3b.FERPCLSID "
     sql=sql+"\n left join T_META_FORMENUMITEM_L eil on eil.FENUMID=enumitem.FENUMID and eil.FLOCALEID=2052                                        "
-    sql=sql+"\n left join T_PUR_ReceivePlanEntry recpe on recpe.FDEMANDBILLID=bills.FID and recpe.FDemandEntryId=bills.FEntryID                   "
+    sql=sql+"\n left join T_PUR_ReceivePlanEntry recpe on recpe.FDEMANDBILLID=bills.FID and recpe.FDemandEntryId=bills.FEntryID and recpe.FMaterialID=bomc2.FMATERIALID "
     sql=sql+"\n where bills.FQTY*bomc2.FNUMERATOR/bomc2.FDENOMINATOR*(1+bomc2.FSCRAPRATE/100)>0                                                   "
     sql=sql+"\n                                                                                                                                   "
     sql=sql+"\n select FDataSource '数据来源',BillType '单据类型',FBillNo '单据编号',F_ora_PINumber 'PI',FQTY '单据数(库存单位)'                  "
