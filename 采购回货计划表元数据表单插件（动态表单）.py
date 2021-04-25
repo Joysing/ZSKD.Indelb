@@ -217,17 +217,18 @@ def AddColumns():
     AddField("FEntity","FStockQty","单据数(库存单位)",100,80)
     AddField("FEntity","FBillMatNumber","单据物料编码",150,80)
     AddField("FEntity","FBillMatName","单据物料名称",150,80)
-    AddField("FEntity","FProductNumber","父件编码",150,80)
-    AddField("FEntity","FProductName","父件名称",150,80)
+    # AddField("FEntity","FProductNumber","父件编码",150,80)
+    # AddField("FEntity","FProductName","父件名称",150,80)
     AddField("FEntity","FMatNumber","物料编码",150,80)
     AddField("FEntity","FMatName","物料名称",150,80)
     AddField("FEntity","FMatSpec","物料规格",150,80)
     AddField("FEntity","FMatProp","物料属性",150,80)
-    AddField("FEntity","FUseQty","用量",100,80)
+    # AddField("FEntity","FUseQty","用量",100,80)
     AddField("FEntity","FScrap","损耗(%)",100,80)
     AddField("FEntity","FDemandQty","需求数",100,80)
-    AddField("FEntity","FTotalLeadTime","固定提前期累加",150,80)
+    AddField("FEntity","FTotalLeadTime","固定提前期",150,80)
     AddField("FEntity","FCalDate","计算日期",150,80)
+    AddField("FEntity","FDemandDate","需求日期",150,80)
     AddField("FEntity","FID","FID",150,80)
     AddField("FEntity","FEntryID","FEntryID",150,80)
     AddField("FEntity","FMaterialID","物料内码",150,80)
@@ -249,58 +250,10 @@ def FilterFormCallBack(formResult):
     this.View.Model.DeleteEntryData("FEntity");#删除行
     # 执行查询的sql
     sql="/*dialect*/"
-    sql=sql+"\n select * into #HigherBOM  from (select ROW_NUMBER() over(partition by FMATERIALID order by FNumber desc) OrderIndex,*             "
-    sql=sql+"\n from T_ENG_BOM where FDOCUMENTSTATUS = 'C' AND FFORBIDSTATUS <> 'B'/* and FUSEORGID=100004*/) bom                                 "
-    sql=sql+"\n where OrderIndex=1                                                                                                                "
-    sql=sql+"\n                                                                                                                                   "
-    sql=sql+"\n select 'BOM' as FDataSource,bills.BillType,bills.FBillNo,bills.F_ora_PINumber,convert(float,bills.FQTY) as FQTY                   "
-    sql=sql+"\n ,mat1.FNUMBER as FBillMatNumber,mat1_l.FNAME as FBillMatName                                                                      "
-    sql=sql+"\n ,mat2.FNUMBER as FProductNumber,mat2_l.FNAME as FProductName                                                                      "
-    sql=sql+"\n ,mat3.FNUMBER as FMatNumber,mat3_l.FNAME as FMatName,mat3_l.FSPECIFICATION as FMatSpec,eil.FCAPTION as FMatProp                   "
-    sql=sql+"\n ,convert(float,bomc2.FNUMERATOR/bomc2.FDENOMINATOR) as FUseQty,convert(float,bomc2.FSCRAPRATE) as FScrap                          "
-    sql=sql+"\n ,convert(float,CEILING(bills.FQTY*bomc2.FNUMERATOR/bomc2.FDENOMINATOR*(1+bomc2.FSCRAPRATE/100))) as FDemandQty                    "
-    sql=sql+"\n ,convert(float,isnull(mat1p.FACCULEADTIME,0)+isnull(mat2p.FACCULEADTIME,0)) as FTotalLeadTime,bills.FCalDate                      "
-    sql=sql+"\n ,bills.FID,bills.FEntryID,mat3.FMaterialID                                                                                        "
-    sql=sql+"\n ,case when recpe.FEntryID is null then '否' else '是' end FIsComplete                                                             "
-    sql=sql+"\n into #ResultTable                                                                                                                 "
-    sql=sql+"\n from(select '生产订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID,t2.FQTY,t2.FPlanFinishDate FCalDate,t2.F_ora_PINumber"
-    sql=sql+"\n     from T_PRD_MO t1 join T_PRD_MOENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C'                                            "
-    sql=sql+"\n union all                                                                                                                         "
-    sql=sql+"\n select '销售订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID,t2.FQTY,t2.FPLANDELIVERYDATE FCalDate,t2.F_ora_PINumber   "
-    sql=sql+"\n     from T_SAL_ORDER t1 join T_SAL_ORDERENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C') bills                               "
-    sql=sql+"\n join t_bd_material mat1 on mat1.FMaterialID=bills.FMATERIALID --成品                                                              "
-    sql=sql+"\n join T_BD_MATERIAL_L mat1_l on mat1_l.FMaterialID=mat1.FMATERIALID and mat1_l.FLOCALEID=2052                                      "
-    sql=sql+"\n join t_BD_MaterialPlan mat1p on mat1p.FMATERIALID=mat1.FMATERIALID                                                                "
-    sql=sql+"\n join #HigherBOM hb on mat1.FMATERIALID=hb.FMATERIALID                                                                             "
-    sql=sql+"\n join T_ENG_BOMCHILD bomc on bomc.FID=hb.FID                                                                                       "
-    sql=sql+"\n join t_bd_material mat2 on mat2.FMaterialID=bomc.FMATERIALID --半成品                                                             "
-    sql=sql+"\n join T_BD_MATERIAL_L mat2_l on mat2_l.FMaterialID=bomc.FMATERIALID and mat2_l.FLOCALEID=2052                                      "
-    sql=sql+"\n join t_BD_MaterialPlan mat2p on mat2p.FMATERIALID=mat2.FMATERIALID                                                                "
-    sql=sql+"\n join #HigherBOM hb2 on bomc.FMATERIALID=hb2.FMATERIALID                                                                           "
-    sql=sql+"\n join T_ENG_BOMCHILD bomc2 on bomc2.FID=hb2.FID                                                                                    "
-    sql=sql+"\n join t_bd_material mat3 on mat3.FMaterialID=bomc2.FMATERIALID --物料（半成品的下一级）                                            "
-    sql=sql+"\n left join T_BD_MATERIAL_L mat3_l on mat3_l.FMaterialID=bomc2.FMATERIALID and mat2_l.FLOCALEID=2052                                "
-    sql=sql+"\n left join T_BD_MATERIALBASE mat3b on mat3b.FMATERIALID=mat3.FMaterialID                                                           "
-    sql=sql+"\n left join T_META_FORMENUMITEM enumitem on enumitem.FID='ac14913e-bd72-416d-a50b-2c7432bbff63' and enumitem.FVALUE=mat3b.FERPCLSID "
-    sql=sql+"\n left join T_META_FORMENUMITEM_L eil on eil.FENUMID=enumitem.FENUMID and eil.FLOCALEID=2052                                        "
-    sql=sql+"\n left join T_PUR_ReceivePlanEntry recpe on recpe.FDEMANDBILLID=bills.FID and recpe.FDemandEntryId=bills.FEntryID and recpe.FMaterialID=bomc2.FMATERIALID "
-    sql=sql+"\n where bills.FQTY*bomc2.FNUMERATOR/bomc2.FDENOMINATOR*(1+bomc2.FSCRAPRATE/100)>0                                                   "
-    sql=sql+"\n                                                                                                                                   "
-    sql=sql+"\n select FDataSource '数据来源',BillType '单据类型',FBillNo '单据编号',F_ora_PINumber 'PI',FQTY '单据数(库存单位)'                  "
-    sql=sql+"\n ,FBillMatNumber '单据物料编码',FBillMatName '单据物料名称'                                                                        "
-    sql=sql+"\n ,FProductNumber '父件编码',FProductName '父件名称'                                                                                "
-    sql=sql+"\n ,FMatNumber '物料编码',FMatName '物料名称',FMatSpec '物料规格',FMatProp '物料属性'                                                "
-    sql=sql+"\n ,FUseQty '用量',FScrap '损耗(%)'                                                                                                  "
-    sql=sql+"\n ,FDemandQty '需求数'                                                                                                              "
-    sql=sql+"\n ,FTotalLeadTime '固定提前期累加',FCalDate '计算日期'                                                                              "
-    sql=sql+"\n ,FID,FEntryID,FMaterialID                                                                                                         "
-    sql=sql+"\n ,FIsComplete '已生成送货计划'                                                                                                     "
-    sql=sql+"\n from #ResultTable                                                                                                                 "
-   
+    sql=sql+"\n zskd_sp_CGHHDTGJBYSJ 9  "
     # 条件过滤
-    if formResult <> None and formResult.ReturnData <> None:#and formResult.ReturnData is FilterParameter)
-        if formResult.ReturnData.FilterString<>"":
-           sql=sql+" where "+formResult.ReturnData.FilterString
+    if formResult <> None and formResult.ReturnData <> None:
+           sql=sql+",'"+formResult.ReturnData.FilterString+"'"
         
     dt = DBUtils.ExecuteDataSet(this.Context,sql).Tables[0];
     if dt.Rows.Count>0:
@@ -310,27 +263,28 @@ def FilterFormCallBack(formResult):
         rows.Clear();
         for i in range(0,dt.Rows.Count):
             row = de.DynamicObject(entity.DynamicObjectType)
-            row["FDataSource"] = dt.Rows[i]["数据来源"]
-            row["FBillType"] = dt.Rows[i]["单据类型"]
-            row["FBillNo"] = dt.Rows[i]["单据编号"]
-            row["FStockQty"] = dt.Rows[i]["单据数(库存单位)"]
-            row["FBillMatNumber"] = dt.Rows[i]["单据物料编码"]
-            row["FBillMatName"] = dt.Rows[i]["单据物料名称"]
-            row["FProductNumber"] = dt.Rows[i]["父件编码"]
-            row["FProductName"] = dt.Rows[i]["父件名称"]
-            row["FMatNumber"] = dt.Rows[i]["物料编码"]
-            row["FMatName"] = dt.Rows[i]["物料名称"]
-            row["FMatSpec"] = dt.Rows[i]["物料规格"]
-            row["FMatProp"] = dt.Rows[i]["物料属性"]
-            row["FUseQty"] = dt.Rows[i]["用量"]
-            row["FScrap"] = dt.Rows[i]["损耗(%)"]
-            row["FDemandQty"] = dt.Rows[i]["需求数"]
-            row["FTotalLeadTime"] = dt.Rows[i]["固定提前期累加"]
-            row["FCalDate"] = dt.Rows[i]["计算日期"]
+            row["FDataSource"] = dt.Rows[i]["FDataSource"]
+            row["FBillType"] = dt.Rows[i]["BillType"]
+            row["FBillNo"] = dt.Rows[i]["FBillNo"]
+            row["FStockQty"] = dt.Rows[i]["FQTY"]
+            row["FBillMatNumber"] = dt.Rows[i]["FBillMatNumber"]
+            row["FBillMatName"] = dt.Rows[i]["FBillMatName"]
+            # row["FProductNumber"] = dt.Rows[i]["父件编码"]
+            # row["FProductName"] = dt.Rows[i]["父件名称"]
+            row["FMatNumber"] = dt.Rows[i]["FMatNumber"]
+            row["FMatName"] = dt.Rows[i]["FMatName"]
+            row["FMatSpec"] = dt.Rows[i]["FMatSpec"]
+            row["FMatProp"] = dt.Rows[i]["FMatProp"]
+            # row["FUseQty"] = dt.Rows[i]["用量"]
+            row["FScrap"] = dt.Rows[i]["FScrap"]
+            row["FDemandQty"] = dt.Rows[i]["FDemandQty"]
+            row["FTotalLeadTime"] = dt.Rows[i]["FTotalLeadTime"]
+            row["FCalDate"] = dt.Rows[i]["FCalDate"]
+            row["FDemandDate"] = dt.Rows[i]["FDemandDate"]
             row["FID"] = dt.Rows[i]["FID"]
             row["FEntryID"] = dt.Rows[i]["FEntryID"]
             row["FMaterialID"] = dt.Rows[i]["FMaterialID"]
-            row["FIsComplete"] = dt.Rows[i]["已生成送货计划"]
+            row["FIsComplete"] = dt.Rows[i]["FIsComplete"]
             rows.Add(row);  
     this.View.UpdateView("FEntity");
 

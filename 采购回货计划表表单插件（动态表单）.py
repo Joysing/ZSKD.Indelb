@@ -148,7 +148,7 @@ def FilterFormCallBack(formResult):
     FStartDateStr=str(this.View.Model.DataObject["FStartDate"])
     # 执行查询的sql
     sql="/*dialect*/"
-    sql=sql+"\n zskd_sp_CGHHDTGJB '"+FStartDateStr+"'  "
+    sql=sql+"\n zskd_sp_CGHHDTGJB '"+FStartDateStr+"',9  "
     # 条件过滤
     if formResult <> None and formResult.ReturnData <> None:
            sql=sql+",'"+formResult.ReturnData.FilterString+"'"
