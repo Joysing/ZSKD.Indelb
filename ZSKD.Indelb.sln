@@ -19,6 +19,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZSKD.Indelb.Plugins", "ZSKD
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZSKD.Indelb.ProwayPLM", "ZSKD.Indelb.ProwayPLM\ZSKD.Indelb.ProwayPLM.csproj", "{B303FD02-6D1E-4B57-897D-66B45BA468B4}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SQL", "SQL", "{35AED215-05C1-4ABB-9064-443EF9F200F0}"
+	ProjectSection(SolutionItems) = preProject
+		生产超领损耗报表.sql = 生产超领损耗报表.sql
+		采购回货动态跟进表_MTO.sql = 采购回货动态跟进表_MTO.sql
+		采购回货动态跟进表元数据_MTO.sql = 采购回货动态跟进表元数据_MTO.sql
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

@@ -48,7 +48,7 @@ namespace ZSKD.Indelb.ReciveBill
                 aTimer.Enabled = true;
             }
             outPutReciveBill();
-            //ImportData();
+            ImportData();
             Executed = true;
         }
         private void checkIsCompletedAll(object source, System.Timers.ElapsedEventArgs e)
