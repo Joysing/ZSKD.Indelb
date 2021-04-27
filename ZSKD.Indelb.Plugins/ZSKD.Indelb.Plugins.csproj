@@ -192,8 +192,18 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
-    <Folder Include="sql\" />
+    <Content Include="Python\收料通知单已导出QIS操作.py" />
+    <Content Include="Python\送货计划单列表插件.py" />
+    <Content Include="Python\送货计划单表单插件.py" />
+    <Content Include="Python\采购回货计划表元数据表单插件（动态表单）.py" />
+    <Content Include="Python\采购回货计划表表单插件（动态表单）.py" />
+    <Content Include="Python\销售订单保存后生成PI号.py" />
+    <Content Include="Python\预测单保存后生成PI号.py" />
+    <Content Include="SQL\生产超领损耗报表.sql" />
+    <Content Include="SQL\采购回货动态跟进表_MTO.sql" />
+    <Content Include="SQL\采购回货动态跟进表元数据_MTO.sql" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
