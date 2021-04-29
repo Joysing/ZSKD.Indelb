@@ -44,6 +44,6 @@ def PrepareFilterParameter(e):
         dt=DBServiceHelper.ExecuteDynamicObject(this.Context,str(sql))
         if dt.Count>0: #如果是供应商用户，只能查看自己供应商的单据
             if e.FilterString == None or e.FilterString == "":
-                e.FilterString = e.FilterString + " (FSupplierId.FID =" + str(dt[0]["FSUPPLIERID"]) + ")";
+                e.FilterString = e.FilterString + " (FSupplierId =" + str(dt[0]["FSUPPLIERID"]) + ")";
             else :
-                e.FilterString = e.FilterString + " and (FSupplierId.FID =" + str(dt[0]["FSUPPLIERID"]) + ")";
+                e.FilterString = e.FilterString + " and (FSupplierId =" + str(dt[0]["FSUPPLIERID"]) + ")";
