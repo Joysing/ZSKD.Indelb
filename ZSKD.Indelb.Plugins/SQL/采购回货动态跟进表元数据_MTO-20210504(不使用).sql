@@ -27,24 +27,10 @@ create table #T_ENG_BOMEXPANDRESULT(
 )
 declare @FUseOrg int = (select FORGID from T_ORG_ORGANIZATIONS where FNUMBER= '100.1') --使用组织 广东英得尔
 
-select '生产订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID FProductID,t2.FQTY FOrderQty,t3.FNOSTOCKINQTY FRemainOutQty
-,t2.FPlanFinishDate FCalDate,t2.F_ora_PINumber F_ora_PINumber,t2.FSALEORDERENTRYID
-into #SCDD
-from T_PRD_MO t1 join T_PRD_MOENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C' and t1.FBillType='6078fc63c1d3ba'
-join t_PRD_MOENTRY_Q t3 on t2.FENTRYID=t3.FENTRYID and t3.FNOSTOCKINQTY>0
-
-select  '销售订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID FProductID,t2.FQTY FOrderQty,t4.FREMAINOUTQTY FRemainOutQty
-,convert(varchar(10),t2.F_ora_ProdFinishDate,23) FCalDate,t2.F_ora_PINumber F_ora_PINumber,0 FSALEORDERENTRYID
-into #XSDD
-from T_SAL_ORDER t1 join T_SAL_ORDERENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C' and t1.FCLOSESTATUS='A' and t2.FMRPCLOSESTATUS='A' and t1.FSALEORGID=@FUseOrg
-join T_SAL_ORDERENTRY_R t4 on t4.FENTRYID=t2.FENTRYID and t4.FREMAINOUTQTY>0
-left join #SCDD on #SCDD.FSALEORDERENTRYID=t2.FENTRYID
-where #SCDD.FSALEORDERENTRYID is null --去掉已运算生成生产订单的
-
 --需要展开的物料
 -- select distinct FMATERIALID into #NeedExpandMat from T_ENG_BOM where FUSEORGID=@FUseOrg
-select distinct FProductID FMATERIALID into #NeedExpandMat
-from (select FProductID from #SCDD union all select FProductID from #XSDD ) t
+select distinct t2.FMATERIALID into #NeedExpandMat
+from T_SAL_ORDER t1 join T_SAL_ORDERENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C' and t1.FCLOSESTATUS='A' and t2.FMRPCLOSESTATUS='A' and t1.FSALEORGID=@FUseOrg
 
 --最高版本BOM临时表
 select * into #HigherBOM  from (select ROW_NUMBER() over(partition by FMATERIALID order by FNumber desc) OrderIndex,* from T_ENG_BOM where FDOCUMENTSTATUS = 'C' AND FFORBIDSTATUS <> 'B' and FUSEORGID=@FUseOrg) bom 
@@ -128,11 +114,21 @@ drop table #HigherBOM
 declare @WorkCalID int =(select top 1 FID from T_ENG_WORKCAL where FFormID='ENG_WorkCal' and FDOCUMENTSTATUS='C' and FFORBIDSTATUS='A' and FUSEORGID=@FUseOrg order by FAPPROVEDATE desc)
 --declare @WorkCalID int =100653
 
-select t1.BillType,t1.FBillNo,t1.FID,t1.FEntryID,t1.FProductID,t1.FOrderQty,t3.子项物料ID FMATERIALID,t3.标准用量*t1.FREMAINOUTQTY FDemandQty
-,t3.损耗率 FSCRAPRATE,t1.FCalDate,t1.F_ora_PINumber,t3.父项物料ID
-into #BillExpand
-from (select * from #SCDD union all select * from #XSDD ) t1
-join #T_ENG_BOMEXPANDRESULT t3 on t3.产品ID=t1.FProductID and t3.是否最底层物料=1
+select  '销售订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID FProductID,t2.FQTY FOrderQty,t3.子项物料ID FMATERIALID,t3.标准用量*t4.FREMAINOUTQTY FDemandQty
+,t3.损耗率 FSCRAPRATE,convert(varchar(10),t2.F_ora_ProdFinishDate,23) FCalDate,t2.F_ora_PINumber F_ora_PINumber 
+into #XSDD
+from T_SAL_ORDER t1 join T_SAL_ORDERENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C' and t1.FCLOSESTATUS='A' and t2.FMRPCLOSESTATUS='A' and t1.FSALEORGID=@FUseOrg
+join #T_ENG_BOMEXPANDRESULT t3 on t3.产品ID=t2.FMATERIALID and t3.是否最底层物料=1
+join T_SAL_ORDERENTRY_R t4 on t4.FENTRYID=t2.FENTRYID
+
+--------------------------------------------------------展开物料（生产订单）
+select '生产订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID FProductID,t2.FQTY FOrderQty,t4.FMATERIALID,t4.FMUSTQTY-t5.FPICKEDQTY FDemandQty
+,t4.FSCRAPRATE,t2.FPlanFinishDate FCalDate,t2.F_ora_PINumber F_ora_PINumber
+into #SCDD
+from T_PRD_MO t1 join T_PRD_MOENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C'  --todo 加条件单据类型
+join T_PRD_PPBOM t3 on t3.FMOENTRYID=t2.FENTRYID
+join T_PRD_PPBOMENTRY t4 on t3.FID=t4.FID
+join T_PRD_PPBOMENTRY_Q t5 on t4.FENTRYID=t5.FENTRYID and t4.FMUSTQTY-t5.FPICKEDQTY>0
 
 ----------------------------------------------------------已生成送货计划单的物料数量
 select FDEMANDBILLID,FDemandEntryId,FMaterialID,sum(FACTRECEIVEQTY) FACTRECEIVEQTY 
@@ -142,7 +138,7 @@ group by FDEMANDBILLID,FDemandEntryId,FMaterialID
 --------------------------------------------------------查询最终数据                                                                                                            
 select 'BOM' as FDataSource,bills.BillType,bills.FBillNo,bills.F_ora_PINumber,convert(float,bills.FOrderQty) as FQTY                   
 ,mat1.FNUMBER as FBillMatNumber,mat1_l.FNAME as FBillMatName                                                                      
-,mat2.FNUMBER as FProductNumber,mat2_l.FNAME as FProductName                                                                      
+--,mat2.FNUMBER as FProductNumber,mat2_l.FNAME as FProductName                                                                      
 ,mat3.FNUMBER as FMatNumber,mat3_l.FNAME as FMatName,mat3_l.FSPECIFICATION as FMatSpec,eil.FCAPTION as FMatProp                   
 ,convert(float,bills.FSCRAPRATE) as FScrap                          
 ,convert(float,CEILING(bills.FDemandQty*(1+bills.FSCRAPRATE/100))) as FDemandQty                 
@@ -152,13 +148,12 @@ select 'BOM' as FDataSource,bills.BillType,bills.FBillNo,bills.F_ora_PINumber,co
 ,case when recpe.FMaterialID is null then '否' else '是' end FIsComplete        
 ,isnull(recpe.FACTRECEIVEQTY,0) FACTRECEIVEQTY
 into #ResultTable                                                                                                                 
-from #BillExpand bills                               
+from(select * from #SCDD union all select * from #XSDD  ) bills                               
 join t_bd_material mat1 on mat1.FMaterialID=bills.FProductID --成品                                                              
 join T_BD_MATERIAL_L mat1_l on mat1_l.FMaterialID=mat1.FMATERIALID and mat1_l.FLOCALEID=2052
-join t_bd_material mat2 on mat2.FMaterialID=bills.父项物料ID
-join T_BD_MATERIAL_L mat2_l on mat2_l.FMaterialID=mat2.FMATERIALID and mat2_l.FLOCALEID=2052
+join t_BD_MaterialPlan mat1p on mat1p.FMATERIALID=mat1.FMATERIALID
 join t_bd_material mat3 on mat3.FMaterialID=bills.FMATERIALID
-left join T_BD_MATERIAL_L mat3_l on mat3_l.FMaterialID=mat3.FMATERIALID and mat3_l.FLOCALEID=2052                                
+left join T_BD_MATERIAL_L mat3_l on mat3_l.FMaterialID=bills.FMATERIALID and mat3_l.FLOCALEID=2052                                
 left join T_BD_MATERIALBASE mat3b on mat3b.FMATERIALID=mat3.FMaterialID                                                           
 left join T_META_FORMENUMITEM enumitem on enumitem.FID='ac14913e-bd72-416d-a50b-2c7432bbff63' and enumitem.FVALUE=mat3b.FERPCLSID 
 left join T_META_FORMENUMITEM_L eil on eil.FENUMID=enumitem.FENUMID and eil.FLOCALEID=2052                                       
@@ -174,7 +169,7 @@ begin
 end
 exec(@sqlStr)
 
-drop table #NeedExpandMat,#T_ENG_BOMEXPANDRESULT,#XSDD,#SCDD,#ResultTable,#BillExpand
+drop table #NeedExpandMat,#T_ENG_BOMEXPANDRESULT,#XSDD,#SCDD,#ResultTable
 
 go
 

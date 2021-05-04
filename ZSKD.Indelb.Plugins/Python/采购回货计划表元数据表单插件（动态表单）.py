@@ -216,11 +216,12 @@ def AddColumns():
     AddField("FEntity","FDataSource","数据来源",100,80)
     AddField("FEntity","FBillType","单据类型",100,80)
     AddField("FEntity","FBillNo","单据编号",150,80)
+    AddField("FEntity","FPINumber","PI号",150,80)
     AddField("FEntity","FStockQty","单据数(库存单位)",100,80)
     AddField("FEntity","FBillMatNumber","单据物料编码",150,80)
     AddField("FEntity","FBillMatName","单据物料名称",150,80)
-    # AddField("FEntity","FProductNumber","父件编码",150,80)
-    # AddField("FEntity","FProductName","父件名称",150,80)
+    AddField("FEntity","FProductNumber","父件编码",150,80)
+    AddField("FEntity","FProductName","父件名称",150,80)
     AddField("FEntity","FMatNumber","物料编码",150,80)
     AddField("FEntity","FMatName","物料名称",150,80)
     AddField("FEntity","FMatSpec","物料规格",150,80)
@@ -274,11 +275,12 @@ def FilterFormCallBack(formResult):
             row["FDataSource"] = dt.Rows[i]["FDataSource"]
             row["FBillType"] = dt.Rows[i]["BillType"]
             row["FBillNo"] = dt.Rows[i]["FBillNo"]
+            row["FPINumber"] = dt.Rows[i]["F_ora_PINumber"]
             row["FStockQty"] = dt.Rows[i]["FQTY"]
             row["FBillMatNumber"] = dt.Rows[i]["FBillMatNumber"]
             row["FBillMatName"] = dt.Rows[i]["FBillMatName"]
-            # row["FProductNumber"] = dt.Rows[i]["父件编码"]
-            # row["FProductName"] = dt.Rows[i]["父件名称"]
+            row["FProductNumber"] = dt.Rows[i]["FProductNumber"]
+            row["FProductName"] = dt.Rows[i]["FProductName"]
             row["FMatNumber"] = dt.Rows[i]["FMatNumber"]
             row["FMatName"] = dt.Rows[i]["FMatName"]
             row["FMatSpec"] = dt.Rows[i]["FMatSpec"]

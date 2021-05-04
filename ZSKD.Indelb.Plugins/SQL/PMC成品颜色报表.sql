@@ -14,12 +14,10 @@
 --蓝：大于安全库存值
 
 --取最新工作日历
-select t1.* into #LastWorkCalData from T_ENG_WorkCalData t1 
-join T_ENG_WorkCal t2 on t1.FID=t2.FID
-where t2.FID=(select top 1 FID from T_ENG_WorkCal where FUSEORGID=100003 and FDOCUMENTSTATUS='C' and FFORBIDSTATUS='A' and FFORMID='ENG_WorkCal' order by FAPPROVEDATE desc)
+declare @WorkCalID int =(select top 1 FID from T_ENG_WORKCAL where FFormID='ENG_WorkCal' and FDOCUMENTSTATUS='C' and FFORBIDSTATUS='A' and FUSEORGID=100102 order by FAPPROVEDATE desc)
 
 --取MTA所有仓库的库存数
-select o1t1.FMaterialID,sum(FSECQTY - FSECLOCKQTY) FAvbQtyinto #Inventory from T_STK_INVENTORY o1t1 join T_BD_STOCK o1t2 on o1t1.FSTOCKID=o1t2.FSTOCKID and o1t2.F_ORA_TEXT4='MTA' group by o1t1.FMaterialID
+select o1t1.FMaterialID,sum(FBASEQTY - FBASElockQTY) FAvbQtyinto #Inventory from T_STK_INVENTORY o1t1 join T_BD_STOCK o1t2 on o1t1.FSTOCKID=o1t2.FSTOCKID and o1t2.F_ORA_TEXT4='MTA' group by o1t1.FMaterialID
 
 --销售订单-MTO
 select t1.FBILLNO+'-'+convert(varchar(10),t2.FSeq) as '加工单号F_ORA_PINUMBER'
@@ -34,12 +32,12 @@ select t1.FBILLNO+'-'+convert(varchar(10),t2.FSeq) as '加工单号F_ORA_PINUMBER'
 	when DATEDIFF(d,convert(date,GETDATE()),t2.FPLANFINISHDATE) between 3 and 4 then '绿色'
 	when DATEDIFF(d,convert(date,GETDATE()),t2.FPLANFINISHDATE)>=5 then '蓝色'
 	else '' end as '缓冲侵蚀颜色'
-,'' as '建议投料日' --交货日期减去5天，只计算工作日
+,workCal2.FDAY as '建议投料日' --交货日期减去5天，只计算工作日
 ,t3.FSTARTDATE as '实际投料日'
 ,t3.FFINISHDATE as '实际完工日期'
 ,DATEDIFF(d,t3.FSTARTDATE,t3.FFINISHDATE) as 'PLT'
 ,t5.FMEMO as '备注'
-,'' as '实际完成日期'
+,t3.FFINISHDATE as '实际完成日期'
 ,t9.FNAME as '客户'
 ,t6.FNUMBER as 'SKU'
 ,case when t7.F_ora_TOCType='MTA' then '库存' when t7.F_ora_TOCType='MTO' then 'Order' end as '订单类型'  --F_ora_TOCType  库存=MTA  Order=MTO  
@@ -53,8 +51,9 @@ join T_BD_MATERIAL t6 on t6.FMATERIALID=t2.FMATERIALID
 join T_SAL_ORDERENTRY t7 on t7.FENTRYID=t2.FSALEORDERENTRYID and t7.FID=t2.FSALEORDERID
 join T_SAL_ORDER t8 on t8.FID=t7.FID
 left join T_BD_CUSTOMER_L t9 on t9.FCUSTID=t8.FCUSTID and t9.FLOCALEID=2052
-left join #LastWorkCalData work1 on work1.FDAY=t2.FPLANFINISHDATE 
-left join #LastWorkCalData work2 on work1.FINTERID-5=work2.FINTERID and work2.FID=work1.FID
+left join T_ENG_WORKCALDATA workCal on workCal.FID=@WorkCalID and workCal.FDAY=t2.FPLANFINISHDATE 
+left join T_ENG_WORKCALDATA workCal2 on workCal2.FID=@WorkCalID and workCal2.FINTERID=workCal.FINTERID - 5
+
 union all
 --预测单-MTO
 select t1.FBILLNO+'-'+convert(varchar(10),t2.FSeq) as '加工单号F_ORA_PINUMBER'
@@ -79,12 +78,12 @@ select t1.FBILLNO+'-'+convert(varchar(10),t2.FSeq) as '加工单号F_ORA_PINUMBER'
 		when DATEDIFF(d,convert(date,GETDATE()),t2.FPLANFINISHDATE)>=5 then '蓝色'
 		end)
 	end as '缓冲侵蚀颜色' 
-,'' as '建议投料日' --交货日期减去5天，只计算工作日
+,workCal2.FDAY as '建议投料日' --交货日期减去5天，只计算工作日
 ,t3.FSTARTDATE as '实际投料日'
 ,t3.FFINISHDATE as '实际完工日期'
 ,DATEDIFF(d,t3.FSTARTDATE,t3.FFINISHDATE) as 'PLT'
 ,t5.FMEMO as '备注'
-,'' as '实际完成日期'
+,t3.FFINISHDATE as '实际完成日期'
 ,t9.FNAME as '客户'
 ,t6.FNUMBER as 'SKU'
 ,case when t7.F_ora_TOCType='MTA' then '库存' when t7.F_ora_TOCType='MTO' then 'Order' end as '订单类型' --F_ora_TOCType  库存=MTA  Order=MTO  
@@ -101,7 +100,7 @@ join T_PLN_FORECAST t8 on t8.FID=t7.FID
 left join T_BD_CUSTOMER_L t9 on t9.FCUSTID=t7.FCUSTID and t9.FLOCALEID=2052
 join T_BD_MATERIALSTOCK t10 on t10.FMATERIALID=t2.FMATERIALID
 left join #Inventory t11 on t11.FMATERIALID=t6.FMASTERID
-left join #LastWorkCalData work1 on work1.FDAY=t2.FPLANFINISHDATE 
-left join #LastWorkCalData work2 on work1.FINTERID-5=work2.FINTERID and work2.FID=work1.FID
+left join T_ENG_WORKCALDATA workCal on workCal.FID=@WorkCalID and workCal.FDAY=t2.FPLANFINISHDATE 
+left join T_ENG_WORKCALDATA workCal2 on workCal2.FID=@WorkCalID and workCal2.FINTERID=workCal.FINTERID - 5
 
 drop table #Inventory,#LastWorkCalData

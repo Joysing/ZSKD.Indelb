@@ -9,7 +9,7 @@ join T_PUR_POORDERENTRY_R t3 on t2.FENTRYID=t3.FENTRYID
 group by t2.FMaterialID
 
 --取MTA所有仓库的库存数
-select o1t1.FMaterialID,sum(FSECQTY - FSECLOCKQTY) FAvbQty
+select o1t1.FMaterialID,sum(FBASEQTY - FBASElockQTY) FAvbQty
 into #Inventory from T_STK_INVENTORY o1t1 
 join T_BD_STOCK o1t2 on o1t1.FSTOCKID=o1t2.FSTOCKID and o1t2.F_ORA_TEXT4='MTA' 
 group by o1t1.FMaterialID
@@ -35,13 +35,11 @@ group by t2.FMaterialID
 select 
 t11.FQTY as 'MTA待检数'
 ,isnull(t10.FAvbQty,0) as '在库（MTA仓库存数）'
-,case when t12.FSAFESTOCK<>0 then (t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK else 0 end as '在库BP'
-,case when t12.FSAFESTOCK<>0 then
-		case when (t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK>=1 then '黑色'
-			when (t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK<1 and (t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK>=0.66 then '红色'
-			when (t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK<0.66 and (t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK>=0.35 then '黄色'
-			when (t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK<0.35 and (t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK>=0 then '绿色'
-			else '蓝色' end
+,(t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK as '在库BP'
+,case when (t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK>=1 then '黑色'
+	when (t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK<1 and (t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK>=0.66 then '红色'
+	when (t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK<0.66 and (t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK>=0.35 then '黄色'
+	when (t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK<0.35 and (t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK>=0 then '绿色'
 	else '蓝色' end as '颜色'
 ,t9.FQTY as '途中'
 ,t5.FNAME as '采购员_MTSSKU'
@@ -60,9 +58,10 @@ left join T_BD_SUPPLIER_L t6 on t4.FDEFAULTVENDORID=t6.FSUPPLIERID and t6.FLOCAL
 join T_META_FORMENUMITEM t7 on t7.FID='ac14913e-bd72-416d-a50b-2c7432bbff63' and t7.FVALUE=t3.FERPCLSID --BD_物料属性
 join T_META_FORMENUMITEM_L t8 on t7.FENUMID=t8.FENUMID and t8.FLOCALEID=2052 AND (T8.FCAPTION='外购' or T8.FCAPTION='委外')
 left join #POOrderNoInStock t9 on t9.FMaterialID=t1.FMaterialID
-left join #Inventory t10 on t1.FMasterID=t10.FMaterialID
+left join #Inventory t10 on t1.FMaterialID=t10.FMaterialID
 left join #POOrderNoCheck t11 on t1.FMaterialID=t11.FMaterialID
-left join T_BD_MATERIALSTOCK t12 on t12.FMATERIALID=t1.FMATERIALID
-where t1.FUseOrgID=100102 and t12.FSAFESTOCK>0
+join T_BD_MATERIALSTOCK t12 on t12.FMATERIALID=t1.FMATERIALID and t12.FSAFESTOCK>0
+where t1.FUseOrgID=100102
+order by (t12.FSAFESTOCK-isnull(t10.FAvbQty,0))/t12.FSAFESTOCK desc
 
 drop table #POOrderNoInStock,#Inventory,#POOrderNoCheck
