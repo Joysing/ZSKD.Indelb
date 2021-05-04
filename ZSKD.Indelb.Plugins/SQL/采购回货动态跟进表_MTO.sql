@@ -30,7 +30,15 @@ create table #T_ENG_BOMEXPANDRESULT(
 declare @FUseOrg int = (select FORGID from T_ORG_ORGANIZATIONS where FNUMBER= '100.1') --使用组织 广东英得尔
 
 --需要展开的物料
-select distinct FMATERIALID into #NeedExpandMat from T_ENG_BOM where FUSEORGID=@FUseOrg
+-- select distinct FMATERIALID into #NeedExpandMat from T_ENG_BOM where FUSEORGID=@FUseOrg
+select distinct t2.FMATERIALID into #NeedExpandMat
+from T_SAL_ORDER t1 join T_SAL_ORDERENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C' and t1.FCLOSESTATUS='A' and t2.FMRPCLOSESTATUS='A' and t1.FSALEORGID=@FUseOrg
+
+--最高版本BOM临时表
+select * into #HigherBOM  from (select ROW_NUMBER() over(partition by FMATERIALID order by FNumber desc) OrderIndex,* from T_ENG_BOM where FDOCUMENTSTATUS = 'C' AND FFORBIDSTATUS <> 'B' and FUSEORGID=@FUseOrg) bom 
+where OrderIndex=1
+CREATE CLUSTERED INDEX HigherBOM_I39cddd1a6a734e05b8bc3b80a5023 ON #HigherBOM (OrderIndex,FID);
+
 declare @NowIndex int =(select min(FMATERIALID) from #NeedExpandMat)
 declare @MaxIndex int =(select max(FMATERIALID) from #NeedExpandMat)
 WHILE @NowIndex<=@MaxIndex
@@ -42,12 +50,7 @@ BEGIN --begin1
 	declare @FMaterialID int
 	declare @FBOMID int
 	declare @FQty decimal(28,10)=1
-	set @FMaterialID=@NowIndex
-
-	--最高版本BOM临时表
-	select * into #HigherBOM  from (select ROW_NUMBER() over(partition by FMATERIALID order by FNumber desc) OrderIndex,* from T_ENG_BOM where FDOCUMENTSTATUS = 'C' AND FFORBIDSTATUS <> 'B' and FUSEORGID=@FUseOrg) bom 
-	where OrderIndex=1 or (OrderIndex>1 and FID=@FBOMID)
-	CREATE CLUSTERED INDEX HigherBOM_I39cddd1a6a734e05b8bc3b80a5023 ON #HigherBOM (OrderIndex,FID);
+	set @FMaterialID=@NowIndex;
 
 	--递归展开物料清单正查 begin
 	WITH CET(FLevelNumber,FBOMLevel,FTopID,FBOMID,FREPLACEGROUP, BOM版本, 父项物料ID,父项物料编码,子项物料ID,子项物料编码,分子,分母,损耗率,标准用量,实际算损耗数量,FRowID,FParentRowID)
@@ -102,11 +105,11 @@ BEGIN --begin1
 	from #T_ENG_BOMEXPANDRESULTInOne t1 left join #HigherBOM t2 on t1.子项物料ID=t2.FMATERIALID
 	
 	order by FLevelNumber;
-	drop table #T_ENG_BOMEXPANDRESULTInOne,#HigherBOM
+	drop table #T_ENG_BOMEXPANDRESULTInOne
 
 	set @NowIndex=(select min(FMATERIALID) from #NeedExpandMat where FMATERIALID>@NowIndex)
 END --begin1
-
+drop table #HigherBOM
 --select * from #T_ENG_BOMEXPANDRESULT
 
 --工作日历
@@ -114,9 +117,9 @@ declare @WorkCalID int =(select top 1 FID from T_ENG_WORKCAL where FFormID='ENG_
 --declare @WorkCalID int =100653
 
 select  '销售订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID FProductID,t2.FQTY FOrderQty,t3.子项物料ID FMATERIALID,t3.标准用量*t4.FREMAINOUTQTY FDemandQty
-,t3.损耗率 FSCRAPRATE,convert(varchar(10),t2.FPLANDELIVERYDATE,23) FCalDate,t2.F_ora_PINumber F_ora_PINumber 
+,t3.损耗率 FSCRAPRATE,convert(varchar(10),t2.F_ora_ProdFinishDate,23) FCalDate,t2.F_ora_PINumber F_ora_PINumber 
 into #XSDD
-from T_SAL_ORDER t1 join T_SAL_ORDERENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C' and t1.FCLOSESTATUS='A'
+from T_SAL_ORDER t1 join T_SAL_ORDERENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C' and t1.FCLOSESTATUS='A' and t2.FMRPCLOSESTATUS='A' and t1.FSALEORGID=@FUseOrg
 join #T_ENG_BOMEXPANDRESULT t3 on t3.产品ID=t2.FMATERIALID and t3.是否最底层物料=1
 join T_SAL_ORDERENTRY_R t4 on t4.FENTRYID=t2.FENTRYID
 
@@ -273,7 +276,9 @@ select FMaterialID,sum(FDemandQty) 毛需求数,sum(FDemandNoScrapQty) 净需求数 into
 
 --按物料汇总 case when t1.FStockQtyCal>=t2.总需求数 then 0 else t1.FStockQtyCal-t2.总需求数
 insert into #AllDayTable(FMaterialID,FStockQty,FStockQtyCal,FTotalDemandQty,FGrossDemandQty,FNetDemandQty)
-select t1.FMaterialID,isnull(inv.FAvbQty,0),isnull(inv.FAvbQty,0),sum(t1.FDemandQty)
+select t1.FMaterialID,isnull(inv.FAvbQty,0)
+,case when isnull(inv.FAvbQty,0)-t2.毛需求数<0 then 0 else isnull(inv.FAvbQty,0)-t2.毛需求数 end --isnull(inv.FAvbQty,0)
+,sum(t1.FDemandQty)
 ,case when inv.FAvbQty>=t2.毛需求数 then t2.毛需求数 else isnull(inv.FAvbQty,0)-t2.毛需求数 end
 ,case when inv.FAvbQty>=t2.净需求数 then t2.净需求数 else isnull(inv.FAvbQty,0)-t2.净需求数 end
 from #TempResult t1 
@@ -294,11 +299,11 @@ declare @IndexDay int=1
 --while(@NowDay<='2020-12-16')
 while(DATEDIFF(d, @StartDay,@NowDay)<100) --小于3：共3天，小于等于3：共4天
 begin --begin1
-	--负数代表缺多少，0代表不缺
+	--负数代表缺多少，正数代表不缺
 	--if 前面日期计算剩余库存>=11月6号的毛需求总和
-	--then 0
+	--then 11月6号的毛需求总和
 	--else 前面日期计算剩余库存-11月6号的毛需求总和
-
+	--剩余库存-11月6号的毛需求总和
 	exec('update t1 set FDemandQtyDay'+@IndexDay+'=(case when t1.FStockQtyCal>=t2.总需求数 then t2.总需求数 else t1.FStockQtyCal-t2.总需求数 end),FStockQtyCal=(case when t1.FStockQtyCal-t2.总需求数<0 then 0 else t1.FStockQtyCal-t2.总需求数 end) from #AllDayTable t1 join #TempResultForDayTotal t2 on t1.FMaterialID=t2.FMATERIALID and t2.FDemandDate='''+@NowDay+'''')
 
 	--if @IndexDay=1

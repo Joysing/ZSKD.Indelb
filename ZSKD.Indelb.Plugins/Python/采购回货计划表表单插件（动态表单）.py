@@ -101,7 +101,7 @@ def AddField(entityKey,fieldKey,fieldName,Width,LabelWidth):
     fldApp.LabelWidth=LocaleValue(str(LabelWidth))
     fldApp.Tabindex=1
     fldApp.Field=fld
-    fldApp.Locked=1
+    fldApp.Locked=1 #1：新增时锁定，2：修改时锁定，3新增和修改都锁定
     fldApp.Visible=1
     _currLayout.Add(fldApp)
     
@@ -113,7 +113,39 @@ def AfterBindData(e):
 
 def AfterBarItemClick(e):
     if e.BarItemKey=="ora_tbRefersh":
-        FilterFormCallBack(_gFormResult)
+        #表头过滤条件
+        MaterialID=this.View.Model.DataObject["FMaterialID"]
+        MaterialName=this.View.Model.GetValue("FMaterialName")
+        MaterialSpec=this.View.Model.GetValue("FMaterialSpec")
+        PurchaserId=this.View.Model.DataObject["FPurchaserId"]
+        DefaultVendor=this.View.Model.DataObject["FDefaultVendor"]
+        OnlyPositive=this.View.Model.DataObject["FOnlyPositive"] #只显示正数
+        OnlyNegative=this.View.Model.DataObject["FOnlyNegative"]
+        
+        gHeadFilterString=" 1=1"
+        if MaterialID<>None:
+            gHeadFilterString=gHeadFilterString+" and FMaterialNumber='"+MaterialID["Number"]+"'"
+        if MaterialName<>None:
+            gHeadFilterString=gHeadFilterString+" and FMaterialName like '%"+MaterialName+"%'"
+        if MaterialSpec<>None:
+            gHeadFilterString=gHeadFilterString+" and FMaterialSpec like '%"+MaterialSpec+"%'"
+        if PurchaserId<>None:
+            gHeadFilterString=gHeadFilterString+" and FPurchaser='"+str(PurchaserId["Name"])+"'"
+        if DefaultVendor<>None:
+            gHeadFilterString=gHeadFilterString+" and FPurSupplier='"+str(DefaultVendor["Name"])+"'"
+        if OnlyPositive==True:
+            gHeadFilterString=gHeadFilterString+" and (isnull(FGrossDemandQty,0)>=0"
+            for FDemandQtyDayIndex in range(1,101):
+                gHeadFilterString=gHeadFilterString+" and isnull(第"+str(FDemandQtyDayIndex)+"天,0)>=0"
+            gHeadFilterString=gHeadFilterString+" and isnull(FLastGrossDemandQty,0)>=0)"
+        if OnlyNegative==True:
+            gHeadFilterString=gHeadFilterString+" and (isnull(FGrossDemandQty,0)<=0"
+            for FDemandQtyDayIndex in range(1,101):
+                gHeadFilterString=gHeadFilterString+" and isnull(第"+str(FDemandQtyDayIndex)+"天,0)<=0"
+            gHeadFilterString=gHeadFilterString+" and isnull(FLastGrossDemandQty,0)<=0)"
+            
+        # this.View.ShowMessage("正在维护，请稍后访问："+str(OnlyPositive))
+        FillEntity(_gFormResult,gHeadFilterString)
     elif e.BarItemKey=="ora_tbFilter":
         OpenFilterFormByClick()
 
@@ -143,18 +175,34 @@ def OpenFilterFormByClick():
 def FilterFormCallBack(formResult):
     global _gFormResult
     _gFormResult=formResult
+    FillEntity(formResult,"")
+
+def FillEntity(formResult,OtherFilter):
     ClearAllColumn()
     AddColumns()
+    #表头过滤条件
     FStartDateStr=str(this.View.Model.DataObject["FStartDate"])
+    
     UserId = str(this.Context.UserId)
     # 执行查询的sql
     sql="/*dialect*/"
     sql=sql+"\n zskd_sp_CGHHDTGJB '"+FStartDateStr+"',9,"+UserId
     # 条件过滤
+    FilterString="1=1 "
     if formResult <> None and formResult.ReturnData <> None:
-           sql=sql+",'"+formResult.ReturnData.FilterString.replace("'", "''")+"'"
+        if formResult.ReturnData.FilterString<>"":
+            FilterString=FilterString+" and "+formResult.ReturnData.FilterString
+
+    if OtherFilter<> None and OtherFilter<>"":
+        FilterString=FilterString+" and "+OtherFilter
+    
+    sql=sql+",'"+FilterString.replace("'", "''")+"'"
+    
+    try:
+        dt = DBUtils.ExecuteDataSet(this.Context,sql).Tables[0];
+    except:
+        raise NameError("正在维护，请稍后访问："+sql)
         
-    dt = DBUtils.ExecuteDataSet(this.Context,sql).Tables[0];
     if dt.Rows.Count>0:
         entity = this.View.BillBusinessInfo.GetEntity("FEntity"); #Entity
         rows = this.Model.GetEntityDataObject(entity); #DynamicObjectCollection
@@ -178,7 +226,6 @@ def FilterFormCallBack(formResult):
             row["FLastGrossDemandQty"] = dt.Rows[i]["FLastGrossDemandQty"]
             rows.Add(row)
     this.View.UpdateView("FEntity")
-
 
 def AddColumns():
     FStartDateStr=str(this.View.Model.DataObject["FStartDate"])

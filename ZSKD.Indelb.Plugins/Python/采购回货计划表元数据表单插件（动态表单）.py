@@ -115,7 +115,7 @@ def AddField(entityKey,fieldKey,fieldName,Width,LabelWidth):
     fldApp.LabelWidth=LocaleValue(str(LabelWidth))
     fldApp.Tabindex=1
     fldApp.Field=fld
-    fldApp.Locked=1
+    fldApp.Locked=11
     fldApp.Visible=1
     _currLayout.Add(fldApp)
 
@@ -133,6 +133,8 @@ def AfterBarItemClick(e):
     if e.BarItemKey=="ora_tbCreateDeliveryPlan":
         GenerateDeliveryPlan();
     elif e.BarItemKey=="ora_tbRefresh":
+        #FCalDate FBillType FBillNo FPINumber FMaterialNumber FMaterialName FMaterialSpec
+
         FilterFormCallBack(_gFormResult)
     elif e.BarItemKey=="ora_tbFilter":
         OpenFilterFormByClick()
@@ -143,15 +145,15 @@ def GenerateDeliveryPlan():
     ErrMessage=""
     for row in rows:
         FDemandQty=float(row["FDemandQty"])
+        FActReceiveQty=float(row["FActReceiveQty"])
         DemandBillNo=str(row["FBillNo"])
         DemandEntryID=int(row["FEntryID"])
         DemandBillID=int(row["FID"])
         
         if row["F_ora_CheckBox"] and FDemandQty>0:
-            if row["FIsComplete"]=="是":
-                # ErrMessage=ErrMessage+"单据"+DemandBillNo+"物料"+row["FMatNumber"]+"已存在送货计划，禁止重复生成\n"
+            # if FDemandQty-FActReceiveQty<=0:
+                # ErrMessage=ErrMessage+"单据"+DemandBillNo+"物料"+row["FMatNumber"]+"已送货计划数量不能超过需求数量，禁止超额生成\n"
                 # continue
-                ErrMessage=ErrMessage+"单据"+DemandBillNo+"物料"+row["FMatNumber"]+"已存在送货计划，现在正在重复生成\n"
                 
             #查询所有该物料的未收料且未送货的采购订单数量，先循环采购订单计算合计数量，如果合计数量小于FDemandQty，提示数量不足。如果数量足够，循环下推每一行
             sql="/*dialect*/"
@@ -232,7 +234,7 @@ def AddColumns():
     AddField("FEntity","FID","FID",150,80)
     AddField("FEntity","FEntryID","FEntryID",150,80)
     AddField("FEntity","FMaterialID","物料内码",150,80)
-    AddField("FEntity","FIsComplete","已生成送货计划",150,80)
+    AddField("FEntity","FActReceiveQty","已生成送货计划数量",150,80)
         
     #根据新的元数据，重构单据体表格列
     grid=this.View.GetControl("FEntity")
@@ -253,9 +255,15 @@ def FilterFormCallBack(formResult):
     sql=sql+"\n zskd_sp_CGHHDTGJBYSJ 9  "
     # 条件过滤
     if formResult <> None and formResult.ReturnData <> None:
-           sql=sql+",'"+formResult.ReturnData.FilterString.replace("'", "''")+"'"
-
-    dt = DBUtils.ExecuteDataSet(this.Context,sql).Tables[0];
+        sql=sql+",'"+formResult.ReturnData.FilterString.replace("'", "''")+"'"
+    else:
+        # sql=sql+",''"
+        return
+        
+    try:
+        dt = DBUtils.ExecuteDataSet(this.Context,sql).Tables[0];
+    except:
+        raise NameError(sql)
     if dt.Rows.Count>0:
         #this.View.ShowMessage(str(dt.Rows.Count));
         entity = this.View.BillBusinessInfo.GetEntity("FEntity"); #Entity
@@ -284,7 +292,7 @@ def FilterFormCallBack(formResult):
             row["FID"] = dt.Rows[i]["FID"]
             row["FEntryID"] = dt.Rows[i]["FEntryID"]
             row["FMaterialID"] = dt.Rows[i]["FMaterialID"]
-            row["FIsComplete"] = dt.Rows[i]["FIsComplete"]
+            row["FActReceiveQty"] = dt.Rows[i]["FActReceiveQty"]
             rows.Add(row);  
     this.View.UpdateView("FEntity");
 
