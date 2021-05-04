@@ -197,13 +197,23 @@
     <Content Include="Python\收料通知单已导出QIS操作.py" />
     <Content Include="Python\送货计划单列表插件.py" />
     <Content Include="Python\送货计划单表单插件.py" />
+    <Content Include="Python\送货通知单保存操作.py" />
+    <Content Include="Python\送货通知单删除操作.py" />
     <Content Include="Python\采购回货计划表元数据表单插件（动态表单）.py" />
     <Content Include="Python\采购回货计划表表单插件（动态表单）.py" />
     <Content Include="Python\销售订单保存后生成PI号.py" />
     <Content Include="Python\预测单保存后生成PI号.py" />
+    <Content Include="SQL\PMC成品颜色报表.sql" />
+    <Content Include="SQL\借领报表.sql" />
     <Content Include="SQL\生产超领损耗报表.sql" />
+    <Content Include="SQL\采购回货动态跟进表_MTO-20210504%28不使用%29.sql" />
+    <Content Include="SQL\采购回货动态跟进表_MTO-按BOM层取%28不使用%29.sql" />
     <Content Include="SQL\采购回货动态跟进表_MTO.sql" />
+    <Content Include="SQL\采购回货动态跟进表元数据_MTO-20210504%28不使用%29.sql" />
+    <Content Include="SQL\采购回货动态跟进表元数据_MTO-按BOM层取%28不使用%29.sql" />
     <Content Include="SQL\采购回货动态跟进表元数据_MTO.sql" />
+    <Content Include="SQL\采购颜色管理报表.sql" />
+    <Content Include="SQL\采购颜色管理报表（考虑在制）.sql" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
