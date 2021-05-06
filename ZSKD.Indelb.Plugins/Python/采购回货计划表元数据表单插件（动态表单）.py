@@ -145,17 +145,17 @@ def AfterBarItemClick(e):
         gHeadFilterString=" 1=1"
         if FCalDate<>None:
             gHeadFilterString=gHeadFilterString+" and FCalDate='"+str(FCalDate)+"'"
-        if FBillType<>None:
+        if FBillType<>None and FBillType<>"":
             gHeadFilterString=gHeadFilterString+" and BillType = '"+FBillType+"'"
-        if FBillNo<>None:
+        if FBillNo<>None and FBillNo<>"":
             gHeadFilterString=gHeadFilterString+" and FBillNo = '"+FBillNo+"'"
-        if FPINumber<>None:
+        if FPINumber<>None and FPINumber<>"":
             gHeadFilterString=gHeadFilterString+" and F_ora_PINumber='"+FPINumber+"'"
         if FMaterialID<>None:
             gHeadFilterString=gHeadFilterString+" and FMatNumber='"+FMaterialID["Number"]+"'"
-        if FMaterialName<>None:
+        if FMaterialName<>None and FMaterialName<>"":
             gHeadFilterString=gHeadFilterString+" and FMatName='"+FMaterialName+"'"
-        if FMaterialSpec<>None:
+        if FMaterialSpec<>None and FMaterialSpec<>"":
             gHeadFilterString=gHeadFilterString+" and FMatSpec='"+FMaterialSpec+"'"
         if FBillMatNumber<>None:
             gHeadFilterString=gHeadFilterString+" and FBillMatNumber='"+FBillMatNumber["Number"]+"'"

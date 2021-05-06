@@ -37,6 +37,8 @@ namespace ZSKD.Indelb.ReciveBill
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            List<FileInfo> ExcelFiles = getFiles("E:\\Joysing\\kingdee\\p英得尔\\ERP升级开发\\QIS", ".xls");
+            return;
             Login();
             debug = Convert.ToBoolean(ConfigurationManager.AppSettings["debug"].ToString().Trim());
 
@@ -407,6 +409,7 @@ namespace ZSKD.Indelb.ReciveBill
                                         if (InspectBills.Count > 0)
                                         {
                                             string NewBillNo = Convert.ToString(InspectBills[0][1]);
+                                            ordenoList.Add(NewBillNo);
 
                                             JArray MultiLanguageTextArr = new JArray();
                                             JObject MultiLanguageTextJson = new JObject();
@@ -560,7 +563,7 @@ namespace ZSKD.Indelb.ReciveBill
                 {
                     foreach (FileInfo f in file) //显示当前目录所有文件 
                     {
-                        if ((extName == null || extName == "") || (extName.ToLower().IndexOf(f.Extension.ToLower()) >= 0))
+                        if ((extName == null || extName == "") || (extName.ToLower().IndexOf(f.Extension.ToLower()) >= 0 && f.Length>0))
                         {
                             lst.Add(f);
                         }
