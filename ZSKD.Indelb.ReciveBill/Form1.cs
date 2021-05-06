@@ -37,8 +37,6 @@ namespace ZSKD.Indelb.ReciveBill
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            List<FileInfo> ExcelFiles = getFiles("E:\\Joysing\\kingdee\\p英得尔\\ERP升级开发\\QIS", ".xls");
-            return;
             Login();
             debug = Convert.ToBoolean(ConfigurationManager.AppSettings["debug"].ToString().Trim());
 
@@ -49,10 +47,11 @@ namespace ZSKD.Indelb.ReciveBill
                 aTimer.Interval = 5000;
                 aTimer.AutoReset = true;
                 aTimer.Enabled = true;
+            
+                outPutReciveBill();
+                ImportData();
+                Executed = true;
             }
-            outPutReciveBill();
-            ImportData();
-            Executed = true;
         }
         private void checkIsCompletedAll(object source, System.Timers.ElapsedEventArgs e)
         {
@@ -351,11 +350,6 @@ namespace ZSKD.Indelb.ReciveBill
                             MSExcel.Range rang = (MSExcel.Range)whs.Cells[excelIndex, 32];//ERP收料通知单单号
                             if (rang.Value != null)
                             {
-                                //if ("是".Equals(Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex, 42]).Value)))//已导出=是，则跳过
-                                //{
-                                //    continue;
-                                //}
-
                                 string ERPBillNo = Convert.ToString(rang.Value);
                                 string PrevFBillNo = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex - 1, 32]).Value);//上一行的ERP收料通知单单号
                                 string NextFBillNo = Convert.ToString(((MSExcel.Range)whs.Cells[excelIndex + 1, 32]).Value);//下一行的ERP收料通知单单号
@@ -498,11 +492,6 @@ namespace ZSKD.Indelb.ReciveBill
                                 //移除掉最后一个","
                                 if (NeedPushEntryIds.Length > 0) NeedPushEntryIds = NeedPushEntryIds.Remove(NeedPushEntryIds.LastIndexOf(","), 1);
 
-                                //判断 当前是一张单据的最后一条分录
-                                if (((MSExcel.Range)whs.Cells[excelIndex + 1, 1]).Value == null || !ERPBillNo.Equals(NextFBillNo))
-                                {
-                           
-                                }
                             }
                             else
                             {
