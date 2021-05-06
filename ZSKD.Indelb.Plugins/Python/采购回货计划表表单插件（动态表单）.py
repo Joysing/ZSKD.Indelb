@@ -114,11 +114,11 @@ def AfterBindData(e):
 def AfterBarItemClick(e):
     if e.BarItemKey=="ora_tbRefersh":
         #表头过滤条件
-        MaterialID=this.View.Model.DataObject["FMaterialID"]
-        MaterialName=this.View.Model.GetValue("FMaterialName")
-        MaterialSpec=this.View.Model.GetValue("FMaterialSpec")
-        PurchaserId=this.View.Model.DataObject["FPurchaserId"]
-        DefaultVendor=this.View.Model.DataObject["FDefaultVendor"]
+        MaterialID=this.View.Model.DataObject["FHeadMaterialID"]
+        MaterialName=this.View.Model.GetValue("FHeadMaterialName")
+        MaterialSpec=this.View.Model.GetValue("FHeadMaterialSpec")
+        PurchaserId=this.View.Model.DataObject["FHeadPurchaserId"]
+        DefaultVendor=this.View.Model.DataObject["FHeadDefaultVendor"]
         OnlyPositive=this.View.Model.DataObject["FOnlyPositive"] #只显示正数
         OnlyNegative=this.View.Model.DataObject["FOnlyNegative"]
         
@@ -221,6 +221,9 @@ def FillEntity(formResult,OtherFilter):
             row["FTotalDemandQty"] = dt.Rows[i]["FTotalDemandQty"]
             row["FGrossDemandQty"] = dt.Rows[i]["FGrossDemandQty"]
             row["FNetDemandQty"] = dt.Rows[i]["FNetDemandQty"]
+            row["FVMIWaitCheckQty"] = dt.Rows[i]["FVMIWaitCheckQty"]
+            row["FWaitCheckQty"] = dt.Rows[i]["FWaitCheckQty"]
+            row["FVMIAvbQty"] = dt.Rows[i]["FVMIAvbQty"]
             for FDemandQtyDayIndex in range(1,101):
                 row["FDemandQtyDay"+str(FDemandQtyDayIndex)] = dt.Rows[i]["第"+str(FDemandQtyDayIndex)+"天"]
             row["FLastGrossDemandQty"] = dt.Rows[i]["FLastGrossDemandQty"]
@@ -241,6 +244,9 @@ def AddColumns():
     AddField("FEntity","FStockUnit","库存计量单位",150,80)
     AddField("FEntity","FStockQty","库存数",80,80)
     AddField("FEntity","FOnWayQty","在途数",80,80)
+    AddField("FEntity","FVMIWaitCheckQty","VMI待检数",80,80)
+    AddField("FEntity","FWaitCheckQty","待检数",80,80)
+    AddField("FEntity","FVMIAvbQty","VMI原材料库存",80,80)
     AddField("FEntity","FTotalDemandQty","总需求数",80,80)
     AddField("FEntity","FGrossDemandQty","当日毛需求",80,80)
     AddField("FEntity","FNetDemandQty","当日净需求",80,80)

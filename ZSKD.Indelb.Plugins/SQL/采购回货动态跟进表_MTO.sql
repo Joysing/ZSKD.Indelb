@@ -5,7 +5,6 @@ as
 --declare @StartDay datetime='2017-01-06' --µ⁄1ÃÏ  2014-09-12 2017-01-06
 declare @FSUPPLIERID int =( select top 1 FSUPPLIERID from T_SCP_USERDATA where FUSERID=@UserId)--∏˘æ›’À∫≈≤Èπ©”¶…Ã£¨ø¥ø¥ «≤ª «π©”¶…Ã–≠Õ¨’À∫≈
 
---------------------------------------------------------’πø™ŒÔ¡œ£®œ˙ €∂©µ•£©
 create table #T_ENG_BOMEXPANDRESULT(
 	FLevelNumber VARCHAR(100) NULL,
 	FBOMLevel VARCHAR(100) NULL,
@@ -34,6 +33,8 @@ select '…˙≤˙∂©µ•' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID FProduct
 into #SCDD
 from T_PRD_MO t1 join T_PRD_MOENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C' and t1.FBillType='6078fc63c1d3ba'
 join t_PRD_MOENTRY_Q t3 on t2.FENTRYID=t3.FENTRYID and t3.FNOSTOCKINQTY>0
+join T_BD_MATERIAL mat on t2.FMATERIALID=mat.FMATERIALID
+join T_BD_MATERIALGROUP matg on mat.FMATERIALGROUP=matg.FID and matg.FNUMBER in ('2','3','4','5','6','7')
 
 select  'œ˙ €∂©µ•' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID FProductID,t2.FQTY FOrderQty,t4.FREMAINOUTQTY FRemainOutQty
 ,convert(varchar(10),t2.F_ora_ProdFinishDate,23) FCalDate,t2.F_ora_PINumber F_ora_PINumber,0 FSALEORDERENTRYID
@@ -134,7 +135,7 @@ select t1.BillType,t1.FBillNo,t1.FID,t1.FEntryID,t1.FProductID,t1.FOrderQty,t3.◊
 ,t3.À∫ƒ¬  FSCRAPRATE,t1.FCalDate,t1.F_ora_PINumber,t3.∏∏œÓŒÔ¡œID
 into #BillExpand
 from (select * from #SCDD union all select * from #XSDD ) t1
-join #T_ENG_BOMEXPANDRESULT t3 on t3.≤˙∆∑ID=t1.FProductID and t3. «∑Ò◊Óµ◊≤„ŒÔ¡œ=1
+join #T_ENG_BOMEXPANDRESULT t3 on t3.≤˙∆∑ID=t1.FProductID --and t3. «∑Ò◊Óµ◊≤„ŒÔ¡œ=1
 
 --------------------------------------------------------≤È—Ø◊Ó÷’ ˝æ›                                                                                                            
 select 'BOM' as FDataSource,bills.BillType,bills.FBillNo,bills.F_ora_PINumber,convert(float,bills.FOrderQty) as FQTY                   
@@ -153,9 +154,17 @@ join t_bd_material mat1 on mat1.FMaterialID=bills.FProductID --≥…∆∑
 join T_BD_MATERIAL_L mat1_l on mat1_l.FMaterialID=mat1.FMATERIALID and mat1_l.FLOCALEID=2052
 join t_bd_material mat2 on mat2.FMaterialID=bills.∏∏œÓŒÔ¡œID
 join T_BD_MATERIAL_L mat2_l on mat2_l.FMaterialID=mat2.FMATERIALID and mat2_l.FLOCALEID=2052
-join t_bd_material mat3 on mat3.FMaterialID=bills.FMATERIALID
-left join T_BD_MATERIAL_L mat3_l on mat3_l.FMaterialID=mat3.FMATERIALID and mat3_l.FLOCALEID=2052                                
-left join T_BD_MATERIALBASE mat3b on mat3b.FMATERIALID=mat3.FMaterialID                                                                           
+join T_BD_MATERIALBASE mat2b on mat2b.FMATERIALID=mat2.FMaterialID    
+join t_bd_material mat3 on mat3.FMaterialID=bills.FMATERIALID 
+and mat3.FNUMBER not like '1.60%' 
+and mat3.FNUMBER not like '1.57%' 
+and mat3.FNUMBER not like '1.56%' 
+and mat3.FNUMBER not like '1.52%'
+and mat3.FNUMBER not like '1.51%'
+and mat3.FNUMBER not like '1.50%'--≤ªœ‘ æ1.60£ª1.57£ª1.56£ª1.52£ª1.51£ª1.50
+join T_BD_MATERIAL_L mat3_l on mat3_l.FMaterialID=mat3.FMATERIALID and mat3_l.FLOCALEID=2052                                
+join T_BD_MATERIALBASE mat3b on mat3b.FMATERIALID=mat3.FMaterialID and ((mat3b.FERPCLSID=1 and mat2b.FERPCLSID<>3) or mat3b.FERPCLSID<>1)--»Áπ˚◊”º˛ «Õ‚π∫«“∏∏º˛ «ŒØÕ‚‘Ú≤ª”√œ‘ æ’‚“ª––
+and mat3b.FERPCLSID<>5 -- Ù–‘=–Èƒ‚ ≤ªœ‘ æ
 left join T_META_FORMENUMITEM enumitem on enumitem.FID='ac14913e-bd72-416d-a50b-2c7432bbff63' and enumitem.FVALUE=mat3b.FERPCLSID 
 left join T_META_FORMENUMITEM_L eil on eil.FENUMID=enumitem.FENUMID and eil.FLOCALEID=2052                                       
 left join T_ENG_WORKCALDATA workCal on workCal.FID=@WorkCalID and workCal.FDAY=bills.FCalDate
@@ -342,9 +351,36 @@ join T_SUB_REQORDERENTRY t2 on t1.FID=t2.FID and t2.FSTATUS<>'6' and t2.FSTATUS<
 join T_SUB_REQORDERENTRY_A t3 on t2.FENTRYID=t3.FENTRYID
 group by t2.FMaterialID
 
+--VMI¥˝ºÏ ˝£® ’¡œÕ®÷™µ•¿‡–Õ=VMI ’¡œµ•£©Œ¥»Îø‚ ˝¡ø
+--select * from t_BAS_BILLTYPE_L where FNAME='VMI ’¡œµ•'
+select t2.FMATERIALID,sum(t2.FACTRECEIVEQTY-t3.FINSTOCKQTY) FNoStockInQty into #VMIWaitCheck from T_PUR_Receive t1 
+join T_PUR_ReceiveEntry t2 on t1.FID=t2.FID and t1.FCLOSESTATUS='A' and t1.FDocumentStatus='C' and t1.FCANCELSTATUS='A' and t2.FMRPCLOSESTATUS='A' 
+and t1.FBillTypeID='0023240234df807511e3089ad113642a'
+join T_PUR_ReceiveEntry_S t3 on t2.FEntryID=t3.FEntryID
+group by t2.FMATERIALID
+
+--¥˝ºÏ ˝£® ’¡œÕ®÷™µ•¿‡–Õ=MTO±Í◊º ’¡œ+MTOŒØÕ‚ ’¡œ+±Í◊º ’¡œµ•£©Œ¥»Îø‚ ˝¡ø
+select t2.FMATERIALID,sum(t2.FACTRECEIVEQTY-t3.FINSTOCKQTY) FNoStockInQty into #WaitCheck from T_PUR_Receive t1 
+join T_PUR_ReceiveEntry t2 on t1.FID=t2.FID and t1.FCLOSESTATUS='A' and t1.FDocumentStatus='C' and t1.FCANCELSTATUS='A' and t2.FMRPCLOSESTATUS='A' 
+and (
+t1.FBillTypeID='607e7efa17f76b' or --MTO±Í◊º ’¡œ
+t1.FBillTypeID='607e804017faff' or --MTOŒØÕ‚ ’¡œ
+t1.FBillTypeID='7cd93c259999489c97798063f2f7bd70' --±Í◊º ’¡œµ•
+)
+join T_PUR_ReceiveEntry_S t3 on t2.FEntryID=t3.FEntryID
+group by t2.FMATERIALID
+
+--VMI‘≠≤ƒ¡œø‚¥Ê£®≤÷ø‚ Ù–‘=π©”¶…Ã≤÷ø‚£©ø‚¥Ê ˝¡ø
+select o1t1.FMaterialID,sum(FBaseQTY - FBaseLOCKQTY) FAvbQty into #VMIInventory from T_STK_INVENTORY o1t1 
+	join T_BD_STOCK o1t2 on o1t1.FSTOCKID=o1t2.FSTOCKID and o1t2.FSTOCKPROPERTY='3'--≤÷ø‚ Ù–‘=π©”¶…Ã≤÷ø‚
+	group by o1t1.FMaterialID
+
 select t2.FNUMBER FMaterialNumber,t3.FNAME FMaterialName,t3.FSPECIFICATION FMaterialSpec,mat2p.FFIXLEADTIME FReceiveAdvanceDays
 ,t5.FName FPurchaser,t6.FNAME FPurSupplier,t8.FNAME FStockUnit
 ,convert(float,t1.FStockQty) FStockQty
+,convert(float,t12.FNoStockInQty) FVMIWaitCheckQty
+,convert(float,t13.FNoStockInQty) FWaitCheckQty
+,convert(float,t14.FAvbQty) FVMIAvbQty
 ,convert(float,isnull(t9.FQTY,0)+isnull(t10.FQTY,0)) FOnWayQty
 ,convert(float,t1.FTotalDemandQty) FTotalDemandQty
 ,convert(float,t1.FGrossDemandQty) FGrossDemandQty
@@ -463,6 +499,9 @@ left join T_BD_UNIT_L t8 on t8.FUNITID=t7.FSTOREUNITID and t8.FLOCALEID=2052
 left join #POOrderNoInStock t9 on t9.FMATERIALID=t1.FMaterialID
 left join #ReqOrderNoInStock t10 on t10.FMATERIALID=t1.FMaterialID
 left join #TempResultForNextDayTotal t11 on t11.FMATERIALID=t1.FMaterialID
+left join #VMIWaitCheck t12 on t12.FMATERIALID=t1.FMaterialID
+left join #WaitCheck t13 on t13.FMATERIALID=t1.FMaterialID
+left join #VMIInventory t14 on t14.FMATERIALID=t2.FMASTERID
 where ((@FSUPPLIERID>0 and t4.FDEFAULTVENDORID=@FSUPPLIERID) or (isnull(@FSUPPLIERID,0)=0))
 
 drop table #TempResult,#AllDayTable,#TempResultForDayTotal,#TempResultForPrevDayTotal,#TempResultForNextDayTotal,#POOrderNoInStock,#ReqOrderNoInStock

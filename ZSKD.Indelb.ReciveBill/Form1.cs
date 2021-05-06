@@ -3,6 +3,7 @@ using log4net;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Configuration;
@@ -116,6 +117,7 @@ namespace ZSKD.Indelb.ReciveBill
         private void outPutReciveBill()
         {
             List<List<object>> Bills = PUR_ReceiveBill.GetAllBill(client, "FDocumentStatus = 'C' and FCheckInComing = 1 and F_PAEZ_Exported=0");//F_PAEZ_Exported=0 未导出
+            //List<List<object>> Bills = PUR_ReceiveBill.GetAllBill(client, "FBillNo='CGSL000328'");//F_PAEZ_Exported=0 未导出
             if (Bills.Count==0)
             {
                 log.Info("没有可以导出的收料通知单。");
@@ -148,11 +150,43 @@ namespace ZSKD.Indelb.ReciveBill
                 whs.Cells[1, 10] = "不良数";
                 whs.Cells[1, 11] = "QIS报检单号";
 
+                //同一单据内，相同物料合并数量
+                Hashtable AllMaterialHT = new Hashtable();
+                for (int i = 0; i < Bills.Count; i++)
+                {
+                    string BillNo = Convert.ToString(Bills[i][1]);
+                    string MaterialNumber = Convert.ToString(Bills[i][2]);
+                    double Qty = Convert.ToDouble(Bills[i][7]);
+                    if (AllMaterialHT.ContainsKey(BillNo+MaterialNumber))
+                    {
+                        JObject jObject = AllMaterialHT[BillNo + MaterialNumber] as JObject;
+                        double OldQty = Convert.ToDouble(Convert.ToString(jObject["Qty"]));
+                        jObject["Qty"] = OldQty + Qty;
+                    }
+                    else
+                    {
+                        List<object> OtherInfo = Bills[i];
+                        JObject jObject = new JObject();
+                        jObject.Add("MaterialNumber", MaterialNumber);
+                        jObject.Add("Qty", Qty);
+                        jObject.Add("OtherInfoIndex", i); //原来的List的索引，保存以便在下方获取原来的其他数据
+                        AllMaterialHT.Add(BillNo + MaterialNumber, jObject);
+                    }
+                }
+
                 string DateTimeStr = DateTime.Now.ToString("yyyyMMddHHmmssf");
                 Dictionary<string, string> BillIDsDic = new Dictionary<string, string>();
                 StringBuilder sbBillNos = new StringBuilder();
-                for (int i = 0; i < Bills.Count; i++)
+                //for (int i = 0; i < Bills.Count; i++)
+                int ExcelRow = 2;
+                foreach (string BillAndMaterialNumber in AllMaterialHT.Keys)
                 {
+
+                    JObject jObject = AllMaterialHT[BillAndMaterialNumber] as JObject;
+                    string MaterialNumber = Convert.ToString(jObject["MaterialNumber"]);
+                    double Qty = Convert.ToDouble(Convert.ToString(jObject["Qty"]));
+                    int i = Convert.ToInt32(Convert.ToString(jObject["OtherInfoIndex"]));
+                    List<object> BillInfo = Bills[i];
                     string BillID = Convert.ToString(Bills[i][0]);
                     string BillNo = Convert.ToString(Bills[i][1]);
                     string FDetailEntity_FSeq = Convert.ToString(Bills[i][11]);
@@ -161,17 +195,18 @@ namespace ZSKD.Indelb.ReciveBill
                         BillIDsDic.Add(BillID, BillNo);
                         sbBillNos.Append("\"").Append(BillNo).Append("\",");
                     }
-                    whs.Cells[i + 2, 1] = BillNo;
-                    whs.Cells[i + 2, 2] = Bills[i][2];
-                    whs.Cells[i + 2, 3] = Bills[i][3];
-                    whs.Cells[i + 2, 4] = Bills[i][4];
-                    whs.Cells[i + 2, 5] = Bills[i][6];
-                    whs.Cells[i + 2, 6] = Bills[i][7];
-                    whs.Cells[i + 2, 7] = Bills[i][5];
-                    whs.Cells[i + 2, 8] = Bills[i][12];
-                    whs.Cells[i + 2, 9] = 0;
-                    whs.Cells[i + 2, 10] = 0;
-                    whs.Cells[i + 2, 11] = "'"+DateTimeStr + (i+1).ToString("000");
+                    whs.Cells[ExcelRow, 1] = BillNo;
+                    whs.Cells[ExcelRow, 2] = Bills[i][2];
+                    whs.Cells[ExcelRow, 3] = Bills[i][3];
+                    whs.Cells[ExcelRow, 4] = Bills[i][4];
+                    whs.Cells[ExcelRow, 5] = Bills[i][6];
+                    whs.Cells[ExcelRow, 6] = Qty;
+                    whs.Cells[ExcelRow, 7] = Bills[i][5];
+                    whs.Cells[ExcelRow, 8] = Bills[i][12];
+                    whs.Cells[ExcelRow, 9] = 0;
+                    whs.Cells[ExcelRow, 10] = 0;
+                    whs.Cells[ExcelRow, 11] = "'"+DateTimeStr + (i+1).ToString("000");
+                    ExcelRow++;
                 }
                 if (sbBillNos.Length > 0)
                 {

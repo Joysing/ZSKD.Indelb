@@ -205,6 +205,8 @@
     <Content Include="Python\预测单保存后生成PI号.py" />
     <Content Include="SQL\PMC成品颜色报表.sql" />
     <Content Include="SQL\借领报表.sql" />
+    <Content Include="SQL\所有物料清单展开-采购回货表专用.sql" />
+    <Content Include="SQL\所有物料清单展开.sql" />
     <Content Include="SQL\生产超领损耗报表.sql" />
     <Content Include="SQL\采购回货动态跟进表_MTO-20210504%28不使用%29.sql" />
     <Content Include="SQL\采购回货动态跟进表_MTO-按BOM层取%28不使用%29.sql" />

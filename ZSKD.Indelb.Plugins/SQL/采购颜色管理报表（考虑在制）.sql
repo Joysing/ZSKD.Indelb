@@ -41,6 +41,7 @@ group by t2.FMaterialID
 --蓝色：大于安全库存值
 select 
 t11.FQTY as 'MTA待检数'
+,t12.FSAFESTOCK-(isnull(t10.FAvbQty,0)+isnull(t9.FQTY,0)+isnull(t13.FQTY,0)) as '安全库存差异'
 ,(t12.FSAFESTOCK-(isnull(t10.FAvbQty,0)+isnull(t9.FQTY,0)+isnull(t13.FQTY,0)))/t12.FSAFESTOCK as '在库BP'
 ,case when (t12.FSAFESTOCK-(isnull(t10.FAvbQty,0)+isnull(t9.FQTY,0)+isnull(t13.FQTY,0)))/t12.FSAFESTOCK>=1 then '黑色'
 	when (t12.FSAFESTOCK-(isnull(t10.FAvbQty,0)+isnull(t9.FQTY,0)+isnull(t13.FQTY,0)))/t12.FSAFESTOCK<1 

@@ -3,7 +3,6 @@ as
 --@Leadtime 提前期
 --采购回货动态跟进表元数据
 
---------------------------------------------------------展开物料（销售订单）
 create table #T_ENG_BOMEXPANDRESULT(
 	FLevelNumber VARCHAR(100) NULL,
 	FBOMLevel VARCHAR(100) NULL,
@@ -32,6 +31,8 @@ select '生产订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID FPro
 into #SCDD
 from T_PRD_MO t1 join T_PRD_MOENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C' and t1.FBillType='6078fc63c1d3ba'
 join t_PRD_MOENTRY_Q t3 on t2.FENTRYID=t3.FENTRYID and t3.FNOSTOCKINQTY>0
+join T_BD_MATERIAL mat on t2.FMATERIALID=mat.FMATERIALID
+join T_BD_MATERIALGROUP matg on mat.FMATERIALGROUP=matg.FID and matg.FNUMBER in ('2','3','4','5','6','7')
 
 select  '销售订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID FProductID,t2.FQTY FOrderQty,t4.FREMAINOUTQTY FRemainOutQty
 ,convert(varchar(10),t2.F_ora_ProdFinishDate,23) FCalDate,t2.F_ora_PINumber F_ora_PINumber,0 FSALEORDERENTRYID
@@ -132,7 +133,7 @@ select t1.BillType,t1.FBillNo,t1.FID,t1.FEntryID,t1.FProductID,t1.FOrderQty,t3.�
 ,t3.损耗率 FSCRAPRATE,t1.FCalDate,t1.F_ora_PINumber,t3.父项物料ID
 into #BillExpand
 from (select * from #SCDD union all select * from #XSDD ) t1
-join #T_ENG_BOMEXPANDRESULT t3 on t3.产品ID=t1.FProductID and t3.是否最底层物料=1
+join #T_ENG_BOMEXPANDRESULT t3 on t3.产品ID=t1.FProductID --and t3.是否最底层物料=1
 
 ----------------------------------------------------------已生成送货计划单的物料数量
 select FDEMANDBILLID,FDemandEntryId,FMaterialID,sum(FACTRECEIVEQTY) FACTRECEIVEQTY 
@@ -157,15 +158,24 @@ join t_bd_material mat1 on mat1.FMaterialID=bills.FProductID --成品
 join T_BD_MATERIAL_L mat1_l on mat1_l.FMaterialID=mat1.FMATERIALID and mat1_l.FLOCALEID=2052
 join t_bd_material mat2 on mat2.FMaterialID=bills.父项物料ID
 join T_BD_MATERIAL_L mat2_l on mat2_l.FMaterialID=mat2.FMATERIALID and mat2_l.FLOCALEID=2052
+join T_BD_MATERIALBASE mat2b on mat2b.FMATERIALID=mat2.FMaterialID           
 join t_bd_material mat3 on mat3.FMaterialID=bills.FMATERIALID
-left join T_BD_MATERIAL_L mat3_l on mat3_l.FMaterialID=mat3.FMATERIALID and mat3_l.FLOCALEID=2052                                
-left join T_BD_MATERIALBASE mat3b on mat3b.FMATERIALID=mat3.FMaterialID                                                           
+and mat3.FNUMBER not like '1.60%' 
+and mat3.FNUMBER not like '1.57%' 
+and mat3.FNUMBER not like '1.56%' 
+and mat3.FNUMBER not like '1.52%'
+and mat3.FNUMBER not like '1.51%'
+and mat3.FNUMBER not like '1.50%'--不显示1.60；1.57；1.56；1.52；1.51；1.50
+join T_BD_MATERIAL_L mat3_l on mat3_l.FMaterialID=mat3.FMATERIALID and mat3_l.FLOCALEID=2052                                
+join T_BD_MATERIALBASE mat3b on mat3b.FMATERIALID=mat3.FMaterialID and ((mat3b.FERPCLSID=1 and mat2b.FERPCLSID<>3) or mat3b.FERPCLSID<>1)--如果子件是外购且父件是委外则不用显示这一行
+and mat3b.FERPCLSID<>5 --属性=虚拟 不显示
 left join T_META_FORMENUMITEM enumitem on enumitem.FID='ac14913e-bd72-416d-a50b-2c7432bbff63' and enumitem.FVALUE=mat3b.FERPCLSID 
 left join T_META_FORMENUMITEM_L eil on eil.FENUMID=enumitem.FENUMID and eil.FLOCALEID=2052                                       
 left join T_ENG_WORKCALDATA workCal on workCal.FID=@WorkCalID and workCal.FDAY=bills.FCalDate
 left join T_ENG_WORKCALDATA workCal2 on workCal2.FID=@WorkCalID and workCal2.FINTERID=workCal.FINTERID - @Leadtime
 left join #T_PUR_ReceivePlanEntry recpe on recpe.FDEMANDBILLID=bills.FID and recpe.FDemandEntryId=bills.FEntryID and recpe.FMaterialID=mat3.FMATERIALID
 where bills.FDemandQty>0
+order by bills.BillType,bills.FBillNo,bills.F_ora_PINumber,mat1.FNUMBER,mat2.FNUMBER,mat3.FNUMBER
 
 declare @sqlStr varchar(max) ='select * from #ResultTable'
 if @filterStr<>'' and @filterStr is not null

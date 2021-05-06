@@ -133,9 +133,35 @@ def AfterBarItemClick(e):
     if e.BarItemKey=="ora_tbCreateDeliveryPlan":
         GenerateDeliveryPlan();
     elif e.BarItemKey=="ora_tbRefresh":
-        #FCalDate FBillType FBillNo FPINumber FMaterialNumber FMaterialName FMaterialSpec
-
-        FilterFormCallBack(_gFormResult)
+        FCalDate=this.View.Model.GetValue("FHeadCalDate")
+        FBillType=this.View.Model.GetValue("FHeadBillType")
+        FBillNo=this.View.Model.GetValue("FHeadBillNo")
+        FPINumber=this.View.Model.GetValue("FHeadPINumber")
+        FMaterialID=this.View.Model.DataObject["FHeadMaterialID"] #this.View.Model.GetValue("FMaterialID")
+        FMaterialName=this.View.Model.GetValue("FHeadMaterialName")
+        FMaterialSpec=this.View.Model.GetValue("FHeadMaterialSpec")
+        FBillMatNumber=this.View.Model.DataObject["FHeadBillMatNumber"] #this.View.Model.GetValue("FBillMatNumber")
+        
+        gHeadFilterString=" 1=1"
+        if FCalDate<>None:
+            gHeadFilterString=gHeadFilterString+" and FCalDate='"+str(FCalDate)+"'"
+        if FBillType<>None:
+            gHeadFilterString=gHeadFilterString+" and BillType = '"+FBillType+"'"
+        if FBillNo<>None:
+            gHeadFilterString=gHeadFilterString+" and FBillNo = '"+FBillNo+"'"
+        if FPINumber<>None:
+            gHeadFilterString=gHeadFilterString+" and F_ora_PINumber='"+FPINumber+"'"
+        if FMaterialID<>None:
+            gHeadFilterString=gHeadFilterString+" and FMatNumber='"+FMaterialID["Number"]+"'"
+        if FMaterialName<>None:
+            gHeadFilterString=gHeadFilterString+" and FMatName='"+FMaterialName+"'"
+        if FMaterialSpec<>None:
+            gHeadFilterString=gHeadFilterString+" and FMatSpec='"+FMaterialSpec+"'"
+        if FBillMatNumber<>None:
+            gHeadFilterString=gHeadFilterString+" and FBillMatNumber='"+FBillMatNumber["Number"]+"'"
+        # this.View.ShowMessage("刷新功能正在维护，请稍后访问："+gHeadFilterString)
+        FillEntity(_gFormResult,gHeadFilterString)
+        
     elif e.BarItemKey=="ora_tbFilter":
         OpenFilterFormByClick()
 def GenerateDeliveryPlan():
@@ -250,17 +276,25 @@ def AddColumns():
 def FilterFormCallBack(formResult):
     global _gFormResult
     _gFormResult=formResult
+    FillEntity(formResult,"")
+
+def FillEntity(formResult,OtherFilter):
+    #86秒
     this.View.Model.DeleteEntryData("FEntity");#删除行
     # 执行查询的sql
     sql="/*dialect*/"
     sql=sql+"\n zskd_sp_CGHHDTGJBYSJ 9  "
-    # 条件过滤
+    # 条件过滤    
+    FilterString="1=1 "
     if formResult <> None and formResult.ReturnData <> None:
-        sql=sql+",'"+formResult.ReturnData.FilterString.replace("'", "''")+"'"
-    else:
-        # sql=sql+",''"
-        return
-        
+        if formResult.ReturnData.FilterString<>"":
+            FilterString=FilterString+" and "+formResult.ReturnData.FilterString
+
+    if OtherFilter<> None and OtherFilter<>"":
+        FilterString=FilterString+" and "+OtherFilter
+    
+    sql=sql+",'"+FilterString.replace("'", "''")+"'"
+    
     try:
         dt = DBUtils.ExecuteDataSet(this.Context,sql).Tables[0];
     except:

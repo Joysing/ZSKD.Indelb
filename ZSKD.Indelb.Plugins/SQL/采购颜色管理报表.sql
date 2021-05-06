@@ -50,7 +50,7 @@ t11.FQTY as 'MTA待检数'
 ,t2.FSPECIFICATION as '规格Spec'
 ,t12.FSAFESTOCK as '缓冲大小（安全库存）'
 from T_BD_MATERIAL t1
-left join T_BD_MATERIAL_L t2 on t1.FMaterialID=t2.FMaterialID
+join T_BD_MATERIAL_L t2 on t1.FMaterialID=t2.FMaterialID and t1.F_ora_MTAColorCtrl=1
 join t_bd_Materialbase t3 on t3.fmaterialid=t1.fmaterialid
 left join T_BD_MATERIALPURCHASE t4 on t1.FMaterialID=t4.FMATERIALID
 left join V_BD_BUYER_L t5 on t4.FPURCHASERID=t5.FID  and t5.FLOCALEID=2052
