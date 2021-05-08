@@ -94,7 +94,9 @@ def AfterBindData(e):
     entity=_currInfo.GetEntity("FEntity")
     entityApp=_currLayout.GetEntityAppearance("FEntity")
     AddColumns()
-    OpenFilterFormByClick()
+    global _gFormResult
+    _gFormResult=None
+    # OpenFilterFormByClick()
 
 #添加字段
 #entityKey=单据体标识,fieldKey=新字段标识,fieldName=新字段名称,Width=新字段宽度,LabelWidth=新字段标题宽度
@@ -160,7 +162,36 @@ def AfterBarItemClick(e):
         if FBillMatNumber<>None:
             gHeadFilterString=gHeadFilterString+" and FBillMatNumber='"+FBillMatNumber["Number"]+"'"
         # this.View.ShowMessage("刷新功能正在维护，请稍后访问："+gHeadFilterString)
-        FillEntity(_gFormResult,gHeadFilterString)
+        
+        if this.View.Model.DataObject["FLeadtime"]<>None:
+            Leadtime=this.View.Model.DataObject["FLeadtime"]
+        else:
+            Leadtime=9
+        if FCalDate<>None:
+            CalDate=str(FCalDate)
+        else:
+            CalDate=""
+        if FBillType<>None:
+            BillType=FBillType
+        else:
+            BillType=""
+        if FBillNo<>None:
+            BillNo=FBillNo
+        else:
+            BillNo=""
+        if FPINumber<>None:
+            PINumber=FPINumber
+        else:
+            PINumber=""
+        if FMaterialID<>None:
+            MaterialID=FMaterialID["Id"]
+        else:
+            MaterialID=0
+        if FBillMatNumber<>None:
+            BillMatID=FBillMatNumber["Id"]
+        else:
+            BillMatID=0
+        FillEntity(_gFormResult,Leadtime,gHeadFilterString,CalDate,BillType,BillNo,PINumber,MaterialID,BillMatID)
         
     elif e.BarItemKey=="ora_tbFilter":
         OpenFilterFormByClick()
@@ -276,14 +307,14 @@ def AddColumns():
 def FilterFormCallBack(formResult):
     global _gFormResult
     _gFormResult=formResult
-    FillEntity(formResult,"")
+    FillEntity(formResult,9,"","","","","","",0,0)
 
-def FillEntity(formResult,OtherFilter):
-    #86秒
+def FillEntity(formResult,Leadtime,OtherFilter,FCalDate,FBillType,FBillNo,FPINumber,FMaterialID,FBillMatID):
+
     this.View.Model.DeleteEntryData("FEntity");#删除行
     # 执行查询的sql
     sql="/*dialect*/"
-    sql=sql+"\n zskd_sp_CGHHDTGJBYSJ 9  "
+    sql=sql+"\n zskd_sp_CGHHDTGJBYSJ "+str(Leadtime)
     # 条件过滤    
     FilterString="1=1 "
     if formResult <> None and formResult.ReturnData <> None:
@@ -294,7 +325,8 @@ def FillEntity(formResult,OtherFilter):
         FilterString=FilterString+" and "+OtherFilter
     
     sql=sql+",'"+FilterString.replace("'", "''")+"'"
-    
+    sql=sql+",'"+FCalDate+"','"+FBillType+"','"+FBillNo+"','"+FPINumber+"',"+str(FMaterialID)+","+str(FBillMatID)
+    # raise NameError(sql)
     try:
         dt = DBUtils.ExecuteDataSet(this.Context,sql).Tables[0];
     except:

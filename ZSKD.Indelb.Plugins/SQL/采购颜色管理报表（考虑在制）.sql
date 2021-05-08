@@ -10,7 +10,7 @@ group by t2.FMaterialID
 --在制数=MTA生产订单 未入库数量
 select t2.FMaterialID,sum(t3.FNOSTOCKINQTY) FQTY
 into #MONoInStock from t_PRD_MO t1 
-join t_PRD_MOENTRY t2 on t1.FID=t2.FID and t1.FCANCELSTATUS='A' and t1.FDOCUMENTSTATUS='C' and t1.FBillType='6078fc01c1d250'
+join t_PRD_MOENTRY t2 on t1.FID=t2.FID and t1.FCANCELSTATUS='A' and t1.FDOCUMENTSTATUS='C' and t1.FBillType='6078fc01c1d24e'
 join t_PRD_MOENTRY_Q t3 on t2.FENTRYID=t3.FENTRYID 
 join t_PRD_MOENTRY_A t4 on t4.FENTRYID=t3.FENTRYID and t4.FSTATUS<'5' --未结案
 group by t2.FMaterialID

@@ -109,19 +109,22 @@ def AfterBindData(e):
     #获取单据体表格的元数据及外观
     entity=_currInfo.GetEntity("FEntity")
     entityApp=_currLayout.GetEntityAppearance("FEntity")
-    OpenFilterFormByClick()
+    global _gFormResult
+    _gFormResult=None
+    #OpenFilterFormByClick()
 
 def AfterBarItemClick(e):
     if e.BarItemKey=="ora_tbRefersh":
         #表头过滤条件
         MaterialID=this.View.Model.DataObject["FHeadMaterialID"]
+        dyMaterialID=this.View.Model.GetValue("FHeadMaterialID")
         MaterialName=this.View.Model.GetValue("FHeadMaterialName")
         MaterialSpec=this.View.Model.GetValue("FHeadMaterialSpec")
         PurchaserId=this.View.Model.DataObject["FHeadPurchaserId"]
         DefaultVendor=this.View.Model.DataObject["FHeadDefaultVendor"]
         OnlyPositive=this.View.Model.DataObject["FOnlyPositive"] #只显示正数
         OnlyNegative=this.View.Model.DataObject["FOnlyNegative"]
-        
+
         gHeadFilterString=" 1=1"
         if MaterialID<>None:
             gHeadFilterString=gHeadFilterString+" and FMaterialNumber='"+MaterialID["Number"]+"'"
@@ -141,11 +144,28 @@ def AfterBarItemClick(e):
         if OnlyNegative==True:
             gHeadFilterString=gHeadFilterString+" and (isnull(FGrossDemandQty,0)<=0"
             for FDemandQtyDayIndex in range(1,101):
-                gHeadFilterString=gHeadFilterString+" and isnull(第"+str(FDemandQtyDayIndex)+"天,0)<=0"
-            gHeadFilterString=gHeadFilterString+" and isnull(FLastGrossDemandQty,0)<=0)"
+                gHeadFilterString=gHeadFilterString+" or isnull(第"+str(FDemandQtyDayIndex)+"天,0)<=0"
+            gHeadFilterString=gHeadFilterString+" or isnull(FLastGrossDemandQty,0)<=0)"
             
-        # this.View.ShowMessage("正在维护，请稍后访问："+str(OnlyPositive))
-        FillEntity(_gFormResult,gHeadFilterString)
+        if this.View.Model.DataObject["FLeadtime"]<>None:
+            Leadtime=this.View.Model.DataObject["FLeadtime"]
+        else:
+            Leadtime=9
+        if MaterialID<>None:
+            intMaterialID=MaterialID["Id"]
+        else:
+            intMaterialID=0
+        if PurchaserId<>None:
+            intPurchaserId=PurchaserId["Id"]
+        else:
+            intPurchaserId=0
+        if DefaultVendor<>None:
+            intDefaultVendor=DefaultVendor["Id"]
+        else:
+            intDefaultVendor=0
+        
+        
+        FillEntity(_gFormResult,Leadtime,gHeadFilterString,intMaterialID,intPurchaserId,intDefaultVendor)
     elif e.BarItemKey=="ora_tbFilter":
         OpenFilterFormByClick()
 
@@ -175,18 +195,20 @@ def OpenFilterFormByClick():
 def FilterFormCallBack(formResult):
     global _gFormResult
     _gFormResult=formResult
-    FillEntity(formResult,"")
+    FillEntity(formResult,9,"",0,0,0)
 
-def FillEntity(formResult,OtherFilter):
+def FillEntity(formResult,Leadtime,OtherFilter,intMaterialID,intPurchaserId,intDefaultVendor):
     ClearAllColumn()
     AddColumns()
     #表头过滤条件
     FStartDateStr=str(this.View.Model.DataObject["FStartDate"])
     
+    OnlyNegative=this.View.Model.DataObject["FOnlyNegative"]
+    
     UserId = str(this.Context.UserId)
     # 执行查询的sql
     sql="/*dialect*/"
-    sql=sql+"\n zskd_sp_CGHHDTGJB '"+FStartDateStr+"',9,"+UserId
+    sql=sql+"\n zskd_sp_CGHHDTGJB '"+FStartDateStr+"',"+str(Leadtime)+","+UserId
     # 条件过滤
     FilterString="1=1 "
     if formResult <> None and formResult.ReturnData <> None:
@@ -197,7 +219,8 @@ def FillEntity(formResult,OtherFilter):
         FilterString=FilterString+" and "+OtherFilter
     
     sql=sql+",'"+FilterString.replace("'", "''")+"'"
-    
+    sql=sql+","+str(intMaterialID)+","+str(intPurchaserId)+","+str(intDefaultVendor)
+
     try:
         dt = DBUtils.ExecuteDataSet(this.Context,sql).Tables[0];
     except:
@@ -219,14 +242,28 @@ def FillEntity(formResult,OtherFilter):
             row["FStockQty"] = dt.Rows[i]["FStockQty"]
             row["FOnWayQty"] = dt.Rows[i]["FOnWayQty"]
             row["FTotalDemandQty"] = dt.Rows[i]["FTotalDemandQty"]
-            row["FGrossDemandQty"] = dt.Rows[i]["FGrossDemandQty"]
-            row["FNetDemandQty"] = dt.Rows[i]["FNetDemandQty"]
+            if OnlyNegative==True and dt.Rows[i]["FGrossDemandQty"]>=0:#只显示负数，正数显示为0
+                row["FGrossDemandQty"] = ""
+            else:
+                row["FGrossDemandQty"] = dt.Rows[i]["FGrossDemandQty"]
+            if OnlyNegative==True and dt.Rows[i]["FNetDemandQty"]>=0:#只显示负数，正数显示为0
+                row["FNetDemandQty"] = ""
+            else:
+                row["FNetDemandQty"] = dt.Rows[i]["FNetDemandQty"]
+                
             row["FVMIWaitCheckQty"] = dt.Rows[i]["FVMIWaitCheckQty"]
             row["FWaitCheckQty"] = dt.Rows[i]["FWaitCheckQty"]
             row["FVMIAvbQty"] = dt.Rows[i]["FVMIAvbQty"]
             for FDemandQtyDayIndex in range(1,101):
-                row["FDemandQtyDay"+str(FDemandQtyDayIndex)] = dt.Rows[i]["第"+str(FDemandQtyDayIndex)+"天"]
-            row["FLastGrossDemandQty"] = dt.Rows[i]["FLastGrossDemandQty"]
+                if OnlyNegative==True and dt.Rows[i]["第"+str(FDemandQtyDayIndex)+"天"]>=0:#只显示负数，正数显示为0
+                    row["FDemandQtyDay"+str(FDemandQtyDayIndex)] = ""
+                else:
+                    row["FDemandQtyDay"+str(FDemandQtyDayIndex)] = dt.Rows[i]["第"+str(FDemandQtyDayIndex)+"天"]
+                    
+            if OnlyNegative==True and dt.Rows[i]["FLastGrossDemandQty"]>=0:#只显示负数，正数显示为0
+                row["FLastGrossDemandQty"] = ""
+            else:
+                row["FLastGrossDemandQty"] = dt.Rows[i]["FLastGrossDemandQty"]
             rows.Add(row)
     this.View.UpdateView("FEntity")
 

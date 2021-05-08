@@ -1,32 +1,33 @@
-alter Procedure zskd_sp_CGHHDTGJB(@StartDay datetime,@Leadtime int,@UserId int,@filterStr varchar(max))
+alter Procedure zskd_sp_CGHHDTGJB(@StartDay datetime,@Leadtime int,@UserId int,@filterStr varchar(max)='',@MaterialID int=0,@Purchaser int=0,@Supplier int=0)
 as
 --采购回货动态跟进表
 
 --declare @StartDay datetime='2017-01-06' --第1天  2014-09-12 2017-01-06
 declare @FSUPPLIERID int =( select top 1 FSUPPLIERID from T_SCP_USERDATA where FUSERID=@UserId)--根据账号查供应商，看看是不是供应商协同账号
 
-create table #T_ENG_BOMEXPANDRESULT(
-	FLevelNumber VARCHAR(100) NULL,
-	FBOMLevel VARCHAR(100) NULL,
-	产品ID INT NULL,
-	FTopID INT NULL,
-	FBOMID INT NULL,
-	FREPLACEGROUP INT NULL, 
-	BOM版本 VARCHAR(100) NULL, 
-	父项物料ID INT NULL,
-	父项物料编码 VARCHAR(100) NULL,
-	子项物料ID INT NULL,
-	子项物料编码 VARCHAR(100) NULL,
-	分子 DECIMAL(28,10) NULL,
-	分母 DECIMAL(28,10) NULL,
-	损耗率 DECIMAL(28,10) NULL,
-	标准用量 DECIMAL(28,10) NULL,
-	实际算损耗用量 DECIMAL(28,10) NULL,
-	FRowID VARCHAR(100) NULL,
-	FParentRowID VARCHAR(100) NULL,
-	是否最底层物料 INT NULL, 
-)
+-- create table #T_ENG_BOMEXPANDRESULT(
+	-- FLevelNumber VARCHAR(100) NULL,
+	-- FBOMLevel VARCHAR(100) NULL,
+	-- 产品ID INT NULL,
+	-- FTopID INT NULL,
+	-- FBOMID INT NULL,
+	-- FREPLACEGROUP INT NULL, 
+	-- BOM版本 VARCHAR(100) NULL, 
+	-- 父项物料ID INT NULL,
+	-- 父项物料编码 VARCHAR(100) NULL,
+	-- 子项物料ID INT NULL,
+	-- 子项物料编码 VARCHAR(100) NULL,
+	-- 分子 DECIMAL(28,10) NULL,
+	-- 分母 DECIMAL(28,10) NULL,
+	-- 损耗率 DECIMAL(28,10) NULL,
+	-- 标准用量 DECIMAL(28,10) NULL,
+	-- 实际算损耗用量 DECIMAL(28,10) NULL,
+	-- FRowID VARCHAR(100) NULL,
+	-- FParentRowID VARCHAR(100) NULL,
+	-- 是否最底层物料 INT NULL, 
+-- )
 declare @FUseOrg int = (select FORGID from T_ORG_ORGANIZATIONS where FNUMBER= '100.1') --使用组织 广东英得尔
+exec zskd_sp_InsertBOMExpandTemp_CGHHB
 
 select '生产订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID FProductID,t2.FQTY FOrderQty,t3.FNOSTOCKINQTY FRemainOutQty
 ,t2.FPlanFinishDate FCalDate,t2.F_ora_PINumber F_ora_PINumber,t2.FSALEORDERENTRYID
@@ -34,16 +35,17 @@ into #SCDD
 from T_PRD_MO t1 join T_PRD_MOENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C' and t1.FBillType='6078fc63c1d3ba'
 join t_PRD_MOENTRY_Q t3 on t2.FENTRYID=t3.FENTRYID and t3.FNOSTOCKINQTY>0
 join T_BD_MATERIAL mat on t2.FMATERIALID=mat.FMATERIALID
-join T_BD_MATERIALGROUP matg on mat.FMATERIALGROUP=matg.FID and matg.FNUMBER in ('2','3','4','5','6','7')
+-- join T_BD_MATERIALGROUP matg on mat.FMATERIALGROUP=matg.FID and matg.FNUMBER in ('2','3','4','5','6','7')
 
 select  '销售订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID FProductID,t2.FQTY FOrderQty,t4.FREMAINOUTQTY FRemainOutQty
 ,convert(varchar(10),t2.F_ora_ProdFinishDate,23) FCalDate,t2.F_ora_PINumber F_ora_PINumber,0 FSALEORDERENTRYID
 into #XSDD
-from T_SAL_ORDER t1 join T_SAL_ORDERENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C' and t1.FCLOSESTATUS='A' and t2.FMRPCLOSESTATUS='A' and t1.FSALEORGID=@FUseOrg
+from T_SAL_ORDER t1 join T_SAL_ORDERENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C' and t1.FCLOSESTATUS='A' and t2.FMRPCLOSESTATUS='A'
+and t1.FSALEORGID=@FUseOrg and t2.F_ora_OptOutPurReturn<>1
 join T_SAL_ORDERENTRY_R t4 on t4.FENTRYID=t2.FENTRYID and t4.FREMAINOUTQTY>0
 left join #SCDD on #SCDD.FSALEORDERENTRYID=t2.FENTRYID
 where #SCDD.FSALEORDERENTRYID is null --去掉已运算生成生产订单的
-
+/*
 --需要展开的物料
 -- select distinct FMATERIALID into #NeedExpandMat from T_ENG_BOM where FUSEORGID=@FUseOrg
 select distinct FProductID FMATERIALID into #NeedExpandMat
@@ -59,9 +61,7 @@ declare @MaxIndex int =(select max(FMATERIALID) from #NeedExpandMat)
 WHILE @NowIndex<=@MaxIndex
 BEGIN --begin1
 	print @NowIndex
-	/*
-		金蝶云星空物料清单正查
-	**/
+	--金蝶云星空物料清单正查
 	declare @FMaterialID int
 	declare @FBOMID int
 	declare @FQty decimal(28,10)=1
@@ -126,26 +126,73 @@ BEGIN --begin1
 END --begin1
 drop table #HigherBOM
 --select * from #T_ENG_BOMEXPANDRESULT
+*/
+--不显示1.60；1.57；1.56；1.52；1.51；1.50
+select t3.* into #T_ENG_BOMEXPANDRESULT from ZSKD_T_ENG_BOMEXPANDRESULT_CGHHB t3
+join T_BD_MATERIALBASE mat2b on mat2b.FMATERIALID=t3.父项物料ID 
+join T_BD_MATERIALBASE mat3b on mat3b.FMATERIALID=t3.子项物料ID and ((mat3b.FERPCLSID=1 and mat2b.FERPCLSID<>3) or mat3b.FERPCLSID<>1)--如果子件是外购且父件是委外则不用显示这一行
+join T_BD_MATERIALPURCHASE t4 on t3.子项物料ID=t4.FMATERIALID and (t4.FPURCHASERID=@Purchaser or @Purchaser=0) 
+and (t4.FDEFAULTVENDORID=@Supplier or @Supplier=0)
+and mat3b.FERPCLSID<>5 --属性=虚拟 不显示
+where 
+  (t3.子项物料编码 not like '1.60%' 
+and t3.子项物料编码 not like '1.57%' 
+and t3.子项物料编码 not like '1.56%' 
+and t3.子项物料编码 not like '1.52%'
+and t3.子项物料编码 not like '1.51%'
+and t3.子项物料编码 not like '1.50%')
+and (t3.子项物料ID=@MaterialID or @MaterialID=0)
+
+-- delete t3 from #T_ENG_BOMEXPANDRESULT t3
+-- join T_BD_MATERIALBASE mat2b on mat2b.FMATERIALID=t3.父项物料ID 
+-- join T_BD_MATERIALBASE mat3b on mat3b.FMATERIALID=t3.子项物料ID and (mat3b.FERPCLSID=1 and mat2b.FERPCLSID=3)--如果子件是外购且父件是委外则不用显示这一行
+-- join T_BD_MATERIALPURCHASE t4 on t3.子项物料ID=t4.FMATERIALID and (t4.FPURCHASERID<>@Purchaser and @Purchaser>0)
+-- where 
+  -- (t3.子项物料编码 like '1.60%' 
+-- or t3.子项物料编码 like '1.57%' 
+-- or t3.子项物料编码 like '1.56%' 
+-- or t3.子项物料编码 like '1.52%'
+-- or t3.子项物料编码 like '1.51%'
+-- or t3.子项物料编码 like '1.50%')
+-- and (t3.子项物料ID<>@MaterialID or @MaterialID>0)
+-- or mat3b.FERPCLSID=5 --属性=虚拟 不显示
 
 --工作日历
 declare @WorkCalID int =(select top 1 FID from T_ENG_WORKCAL where FFormID='ENG_WorkCal' and FDOCUMENTSTATUS='C' and FFORBIDSTATUS='A' and FUSEORGID=@FUseOrg order by FAPPROVEDATE desc)
 --declare @WorkCalID int =100653
 
-select t1.BillType,t1.FBillNo,t1.FID,t1.FEntryID,t1.FProductID,t1.FOrderQty,t3.子项物料ID FMATERIALID,t3.标准用量*t1.FREMAINOUTQTY FDemandQty
-,t3.损耗率 FSCRAPRATE,t1.FCalDate,t1.F_ora_PINumber,t3.父项物料ID
+select t1.BillType,t1.FBillNo,t1.FID,t1.FEntryID,t1.FProductID,t1.FOrderQty,isnull(t3.子项物料ID,t1.FProductID) FMATERIALID,isnull(t3.标准用量,1)*t1.FREMAINOUTQTY FDemandQty
+,isnull(t3.损耗率,0) FSCRAPRATE,t1.FCalDate,t1.F_ora_PINumber,isnull(t3.父项物料ID,t1.FProductID) 父项物料ID
 into #BillExpand
 from (select * from #SCDD union all select * from #XSDD ) t1
-join #T_ENG_BOMEXPANDRESULT t3 on t3.产品ID=t1.FProductID --and t3.是否最底层物料=1
+left join #T_ENG_BOMEXPANDRESULT t3 on t3.产品ID=t1.FProductID --and t3.是否最底层物料=1
+
+----生产订单已领料数量
+select '生产订单' BillType,t1.FBillNo,t1.FID,t2.FEntryID,t2.FMATERIALID FProductID,t2.FQTY FOrderQty,t4.FMATERIALID,t4.FMUSTQTY-t5.FPICKEDQTY FDemandQty
+,t4.FSCRAPRATE,t2.FPlanFinishDate FCalDate,t2.F_ora_PINumber F_ora_PINumber
+into #SCDDPick
+from T_PRD_MO t1 join T_PRD_MOENTRY t2 on t1.FID=t2.FID and t1.FDocumentStatus='C' and t1.FBillType='6078fc63c1d3ba'
+join T_PRD_PPBOM t3 on t3.FMOENTRYID=t2.FENTRYID
+join T_PRD_PPBOMENTRY t4 on t3.FID=t4.FID
+join T_PRD_PPBOMENTRY_Q t5 on t4.FENTRYID=t5.FENTRYID and t4.FMUSTQTY-t5.FPICKEDQTY>0
 
 --------------------------------------------------------查询最终数据                                                                                                            
 select 'BOM' as FDataSource,bills.BillType,bills.FBillNo,bills.F_ora_PINumber,convert(float,bills.FOrderQty) as FQTY                   
 ,mat1.FNUMBER as FBillMatNumber,mat1_l.FNAME as FBillMatName
 ,mat2.FNUMBER as FProductNumber,mat2_l.FNAME as FProductName
 ,mat3.FNUMBER as FMatNumber,mat3_l.FNAME as FMatName,mat3_l.FSPECIFICATION as FMatSpec,eil.FCAPTION as FMatProp                   
-,convert(float,bills.FSCRAPRATE) as FScrap                          
-,convert(float,CEILING(bills.FDemandQty*(1+bills.FSCRAPRATE/100))) as FDemandQty                    
-,convert(float,CEILING(bills.FDemandQty)) as FDemandNoScrapQty        
-,@Leadtime as FTotalLeadTime,bills.FCalDate,isnull(workCal2.FDAY,DATEADD(d,@Leadtime+2,bills.FCalDate)) FDemandDate
+,convert(float,bills.FSCRAPRATE) as FScrap
+,case when bills.BillType='生产订单' then
+	#SCDDPick.FDemandQty
+else
+	convert(float,CEILING(bills.FDemandQty*(1+bills.FSCRAPRATE/100)))
+end as FDemandQty                 
+,case when bills.BillType='生产订单' then
+	#SCDDPick.FDemandQty
+else
+	convert(float,CEILING(bills.FDemandQty))
+end as FDemandNoScrapQty        
+,@Leadtime as FTotalLeadTime,bills.FCalDate,isnull(workCal2.FDAY,DATEADD(d,-1*@Leadtime-2,bills.FCalDate)) FDemandDate
 ,bills.FID,bills.FEntryID,mat3.FMaterialID                                                                                        
 ,case when recpe.FEntryID is null then '否' else '是' end FIsComplete                                                             
 into #TempResult                                                                                                                 
@@ -156,23 +203,17 @@ join t_bd_material mat2 on mat2.FMaterialID=bills.父项物料ID
 join T_BD_MATERIAL_L mat2_l on mat2_l.FMaterialID=mat2.FMATERIALID and mat2_l.FLOCALEID=2052
 join T_BD_MATERIALBASE mat2b on mat2b.FMATERIALID=mat2.FMaterialID    
 join t_bd_material mat3 on mat3.FMaterialID=bills.FMATERIALID 
-and mat3.FNUMBER not like '1.60%' 
-and mat3.FNUMBER not like '1.57%' 
-and mat3.FNUMBER not like '1.56%' 
-and mat3.FNUMBER not like '1.52%'
-and mat3.FNUMBER not like '1.51%'
-and mat3.FNUMBER not like '1.50%'--不显示1.60；1.57；1.56；1.52；1.51；1.50
 join T_BD_MATERIAL_L mat3_l on mat3_l.FMaterialID=mat3.FMATERIALID and mat3_l.FLOCALEID=2052                                
-join T_BD_MATERIALBASE mat3b on mat3b.FMATERIALID=mat3.FMaterialID and ((mat3b.FERPCLSID=1 and mat2b.FERPCLSID<>3) or mat3b.FERPCLSID<>1)--如果子件是外购且父件是委外则不用显示这一行
-and mat3b.FERPCLSID<>5 --属性=虚拟 不显示
+join T_BD_MATERIALBASE mat3b on mat3b.FMATERIALID=mat3.FMaterialID
 left join T_META_FORMENUMITEM enumitem on enumitem.FID='ac14913e-bd72-416d-a50b-2c7432bbff63' and enumitem.FVALUE=mat3b.FERPCLSID 
 left join T_META_FORMENUMITEM_L eil on eil.FENUMID=enumitem.FENUMID and eil.FLOCALEID=2052                                       
 left join T_ENG_WORKCALDATA workCal on workCal.FID=@WorkCalID and workCal.FDAY=bills.FCalDate
 left join T_ENG_WORKCALDATA workCal2 on workCal2.FID=@WorkCalID and workCal2.FINTERID=workCal.FINTERID - @Leadtime
 left join T_PUR_ReceivePlanEntry recpe on recpe.FDEMANDBILLID=bills.FID and recpe.FDemandEntryId=bills.FEntryID and recpe.FMaterialID=mat3.FMATERIALID
+left join #SCDDPick on bills.BillType='生产订单' and bills.FEntryID=#SCDDPick.FEntryID and #SCDDPick.FMATERIALID=bills.FMATERIALID 
 where bills.FDemandQty>0
 
-drop table #NeedExpandMat,#T_ENG_BOMEXPANDRESULT,#XSDD,#SCDD,#BillExpand
+drop table #XSDD,#SCDD,#BillExpand
 
 --创建日期表
 CREATE TABLE #AllDayTable(
@@ -290,17 +331,17 @@ select FMaterialID,sum(FDemandQty) 毛需求数,sum(FDemandNoScrapQty) 净需求数 into
 
 --按物料汇总 case when t1.FStockQtyCal>=t2.总需求数 then 0 else t1.FStockQtyCal-t2.总需求数
 insert into #AllDayTable(FMaterialID,FStockQty,FStockQtyCal,FTotalDemandQty,FGrossDemandQty,FNetDemandQty)
-select t1.FMaterialID,isnull(inv.FAvbQty,0)
-,case when isnull(inv.FAvbQty,0)-t2.毛需求数<0 then 0 else isnull(inv.FAvbQty,0)-t2.毛需求数 end --isnull(inv.FAvbQty,0)
+select t1.FMaterialID,inv.FAvbQty
+,case when isnull(inv.FAvbQty,0)-isnull(t2.毛需求数,0)<0 then 0 else isnull(inv.FAvbQty,0)-isnull(t2.毛需求数,0) end --isnull(inv.FAvbQty,0)
 ,sum(t1.FDemandQty)
-,case when inv.FAvbQty>=t2.毛需求数 then t2.毛需求数 else isnull(inv.FAvbQty,0)-t2.毛需求数 end
-,case when inv.FAvbQty>=t2.净需求数 then t2.净需求数 else isnull(inv.FAvbQty,0)-t2.净需求数 end
+,case when inv.FAvbQty>=isnull(t2.毛需求数,0) then isnull(t2.毛需求数,0) else isnull(inv.FAvbQty,0)-isnull(t2.毛需求数,0) end
+,case when inv.FAvbQty>=isnull(t2.净需求数,0) then isnull(t2.净需求数,0) else isnull(inv.FAvbQty,0)-isnull(t2.净需求数,0) end
 from #TempResult t1 
 left join #TempResultForPrevDayTotal t2 on t1.FMATERIALID=t2.FMATERIALID 
 left join T_BD_MATERIAL t3 on t1.FMATERIALID=t3.FMATERIALID
 outer apply (select sum(FBaseQTY - FBaseLOCKQTY) FAvbQty from T_STK_INVENTORY o1t1 
 	join T_BD_STOCK o1t2 on o1t1.FSTOCKID=o1t2.FSTOCKID and o1t2.F_ORA_TEXT3='MTO'/* 仓库标识“TOC属性”=MTO仓库*/
-	where o1t1.FMaterialID=t3.FMASTERID 
+	where FBaseQTY - FBaseLOCKQTY>0 and o1t1.FMaterialID=t3.FMASTERID 
 ) inv 
 group by t1.FMaterialID,inv.FAvbQty,t2.毛需求数,t2.净需求数
 
@@ -368,6 +409,7 @@ t1.FBillTypeID='607e804017faff' or --MTO委外收料
 t1.FBillTypeID='7cd93c259999489c97798063f2f7bd70' --标准收料单
 )
 join T_PUR_ReceiveEntry_S t3 on t2.FEntryID=t3.FEntryID
+where t2.FACTRECEIVEQTY-t3.FINSTOCKQTY>0
 group by t2.FMATERIALID
 
 --VMI原材料库存（仓库属性=供应商仓库）库存数量
@@ -503,6 +545,7 @@ left join #VMIWaitCheck t12 on t12.FMATERIALID=t1.FMaterialID
 left join #WaitCheck t13 on t13.FMATERIALID=t1.FMaterialID
 left join #VMIInventory t14 on t14.FMATERIALID=t2.FMASTERID
 where ((@FSUPPLIERID>0 and t4.FDEFAULTVENDORID=@FSUPPLIERID) or (isnull(@FSUPPLIERID,0)=0))
+order by t2.FNUMBER
 
 drop table #TempResult,#AllDayTable,#TempResultForDayTotal,#TempResultForPrevDayTotal,#TempResultForNextDayTotal,#POOrderNoInStock,#ReqOrderNoInStock
 
