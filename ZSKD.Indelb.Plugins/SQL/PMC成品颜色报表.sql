@@ -1,3 +1,5 @@
+alter Procedure zskd_sp_PMCColorReport(@IsUpdate int=0,@PINumber varchar(100)='')
+as
 --MTO
 --黑色：已过交货日期
 --红色：交货日期当天
@@ -11,7 +13,6 @@
 --黄：低于安全库存值65-35%区间
 --绿：低于安全库存值34-0%区间
 --蓝：大于安全库存值
-declare @PINumber varchar(100)='#FPINumber#'
 
 --取最新工作日历
 declare @WorkCalID int =(select top 1 FID from T_ENG_WORKCAL where FFormID='ENG_WorkCal' and FDOCUMENTSTATUS='C' and FFORBIDSTATUS='A' and FUSEORGID=100102 order by FAPPROVEDATE desc)
@@ -24,6 +25,7 @@ declare @update_ varchar(10) = 'update'
 exec(''+ @update_ +' t2 set FSALEORDERENTRYID=t1.FENTRYID,FSALEORDERID=t1.FID
  from T_SAL_ORDERENTRY t1 join #T_PRD_MOENTRY t2 on t1.F_ora_PINumber=t2.F_ora_PINumber and t2.FSALEORDERENTRYID=0 and t2.FSALEORDERID=0')
 
+select * into #ResultTable from(
 --销售订单-MTO
 select t7.F_ora_PINumber as '加工单号F_ORA_PINUMBER'
 ,t2.FQTY as '计划数量OriginQty'
@@ -84,7 +86,7 @@ select t7.F_ora_PINumber as '加工单号F_ORA_PINUMBER'
 		when DATEDIFF(d,convert(date,isnull(t3.FFINISHDATE,GETDATE())),t2.FPLANFINISHDATE) between 3 and 4 then '绿色'
 		when DATEDIFF(d,convert(date,isnull(t3.FFINISHDATE,GETDATE())),t2.FPLANFINISHDATE)>=5 then '蓝色'
 		end)
-	end as '缓冲侵蚀颜色' 
+	end as '缓冲侵蚀颜色' --F_ora_PMCColor  UpdateAllPMCColor
 ,workCal2.FDAY as '建议投料日' --交货日期减去5天，只计算工作日
 ,t3.FSTARTDATE as '实际投料日'
 ,t3.FFINISHDATE as '实际完工日期'
@@ -110,5 +112,9 @@ left join T_ENG_WORKCALDATA workCal on workCal.FID=@WorkCalID and workCal.FDAY=t
 left join T_ENG_WORKCALDATA workCal2 on workCal2.FID=@WorkCalID and workCal2.FINTERID=workCal.FINTERID - 5
 join T_BD_MATERIALGROUP matg on t6.FMATERIALGROUP=matg.FID and matg.FNUMBER in ('2','3','4','5','6','7')
 where (len(@PINumber)=0 or @PINumber=t7.F_ora_PINumber)
-
-drop table #Inventory,#LastWorkCalData
+) t
+if @IsUpdate=1 
+BEGIN
+	update t1 set F_ora_PMCColor=t2.缓冲侵蚀颜色 from T_PRD_MOENTRY t1 join #ResultTable t2 on t1.F_ora_PINumber=t2.加工单号F_ORA_PINUMBER
+END
+select * from #ResultTable
