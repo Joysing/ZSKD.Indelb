@@ -47,8 +47,8 @@ namespace ZSKD.Indelb.ReciveBill
                     //所有订单都成功时
                     if (IsSuccess)
                     {
-                        log.Info("全部单导入成功。");
-                        result.Add("Info", "导入成功");
+                        log.Info("全部单保存成功。");
+                        result.Add("Info", "保存成功");
                     }
                     else//某些订单失败
                     {
@@ -61,7 +61,7 @@ namespace ZSKD.Indelb.ReciveBill
                             string Message = errorsJson[i]["Message"].ToString();//错误信息
                             string FieldName = errorsJson[i]["FieldName"].ToString();//出错的字段
 
-                            sb.Append(" 导入订单出错：" + ordenoList.ElementAt(DIndex));
+                            sb.Append(" 保存单据出错：" + ordenoList.ElementAt(DIndex));
                             if (!"".Equals(FieldName)) sb.Append(" 出错字段：").Append(FieldName);
                             sb.Append(" 错误信息：").AppendLine(Message);
                         }

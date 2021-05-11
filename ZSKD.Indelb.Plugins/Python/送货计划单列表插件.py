@@ -1,4 +1,4 @@
-import clr
+Ôªøimport clr
 clr.AddReference("Kingdee.BOS")
 clr.AddReference("Kingdee.BOS.App")
 clr.AddReference("Kingdee.BOS.Core")
@@ -42,7 +42,6 @@ from Kingdee.BOS import *
 from Kingdee.BOS.Core.Metadata import *
 from Kingdee.BOS.Core.Metadata.ControlElement import *
 from Kingdee.BOS.Core.Metadata.FieldElement import *
-from Kingdee.BOS.Core import *
 from Kingdee.BOS.Core import List
 from Kingdee.BOS.App.Data import DBUtils
 from Kingdee.BOS.Core.Metadata.ConvertElement.ServiceArgs import *
@@ -54,33 +53,51 @@ from Kingdee.BOS.App import *
 from Kingdee.BOS.Contracts import *
 from Kingdee.BOS.Util.OperateOptionUtils import *
 
-# global FilterCondition
-# FilterCondition=ProductCostMultiCondition();
-#ÀÕªıº∆ªÆµ•±Ìµ•≤Âº˛
-
+#ÈÄÅË¥ßËÆ°ÂàíÂçïÂàóË°®Êèí‰ª∂
+def PrepareFilterParameter(e):
+    UserId = this.Context.UserId;
+    if UserId>0:
+        sql = "/*dialect*/select FUSERID,FSUPPLIERID from T_SCP_USERDATA where FUSERID=" + str(UserId);
+        dt=DBServiceHelper.ExecuteDynamicObject(this.Context,str(sql))
+        if dt.Count>0: #Â¶ÇÊûúÊòØ‰æõÂ∫îÂïÜÁî®Êà∑ÔºåÂè™ËÉΩÊü•ÁúãËá™Â∑±‰æõÂ∫îÂïÜÁöÑÂçïÊçÆ
+            if e.FilterString == None or e.FilterString == "":
+                e.FilterString = e.FilterString + " (FSupplierId =" + str(dt[0]["FSUPPLIERID"]) + ")";
+            else :
+                e.FilterString = e.FilterString + " and (FSupplierId =" + str(dt[0]["FSUPPLIERID"]) + ")";
+                
 def AfterBarItemClick(e):
-    if e.BarItemKey=="ora_tbCreateRecNotice":
-        BillID=this.View.Model.DataObject["Id"]
-        sql="/*dialect*/ select t1.FSeq,t2.FSID,t2.FSBillID,t1.FACTRECEIVEQTY from T_PUR_ReceivePlanEntry t1 "
-        sql=sql+"\n join T_PUR_ReceivePlanEntry_LK t2 on t1.FEntryID=t2.FEntryID and t1.FID="+str(BillID)
-        SQLRows=DBServiceHelper.ExecuteDynamicObject(this.Context,sql)
+    if e.BarItemKey == "tbPushToRec":
+        selectRows = this.ListView.SelectedRowsInfo
+        selectRowsEntryIds=selectRows.GetEntryPrimaryKeyValues()
+        for EntryId in selectRowsEntryIds:
+            sql="/*dialect*/ select t1.FSeq,t4.FBillNo,t2.FSID,t2.FSBillID,t1.FACTRECEIVEQTY,t4.FCONFIRMSTATUS,t3.FENTRYSTATUS,t1.FID,t1.FEntryID from T_PUR_ReceivePlanEntry t1 "
+            sql=sql+"\n join T_PUR_ReceivePlanEntry_LK t2 on t1.FEntryID=t2.FEntryID and t1.FEntryID="+str(EntryId)
+            sql=sql+"\n join T_PUR_ReceivePlanEntry_R t3 on t1.FEntryID=t3.FEntryID"
+            sql=sql+"\n join T_PUR_ReceivePlan t4 on t1.FID=t4.FID"
+
+            SQLRows=DBServiceHelper.ExecuteDynamicObject(this.Context,sql)
+            if SQLRows.Count>0:
+                if SQLRows[0]["FCONFIRMSTATUS"]=="A":
+                    this.View.ShowMessage(SQLRows[0]["FBillNo"]+" ÂçïÊçÆÊú™Á°ÆËÆ§ÔºåËØ∑Á°ÆËÆ§ÂêéÂÜçÁîüÊàê„ÄÇ")
+                    return
         
-        Message=""
-        for SQLRow in SQLRows:
-            PushResult=PushDownRecNotice(SQLRow["FSBillID"],SQLRow["FSID"],SQLRow["FACTRECEIVEQTY"])
-            if PushResult.find(" ß∞‹")>-1:
-                Message=Message+"µ⁄"+str(SQLRow["FSeq"])+"––…˙≥… ß∞‹£∫"+PushResult
-            else:
-                Message=Message+"µ⁄"+str(SQLRow["FSeq"])+"––…˙≥…≥…π¶£∫"+PushResult
-        if Message<>"":
-            this.View.ShowMessage(Message)
+                if SQLRows[0]["FENTRYSTATUS"]=="B":
+                    Message=SQLRows[0]["FBillNo"]+" Á¨¨"+str(SQLRows[0]["FSeq"])+"Ë°å‰∏çÊª°Ë∂≥ÁîüÊàêÊù°‰ª∂ÔºöË°åÁä∂ÊÄÅ=Êú™ÂÖ≥Èó≠"
+                    return
+                
+                PushResult=PushDownRecNotice(SQLRows[0]["FSBillID"],SQLRows[0]["FSID"],SQLRows[0]["FACTRECEIVEQTY"],SQLRows[0]["FID"],SQLRows[0]["FEntryID"],SQLRows[0]["FBillNo"])
+                if PushResult.find("Â§±Ë¥•")>-1:
+                    this.View.ShowMessage(SQLRows[0]["FBillNo"]+" ÁîüÊàêÂ§±Ë¥•Ôºö"+PushResult)
+                    return
+        this.View.ShowMessage("ÁîüÊàêÊìç‰ΩúÂÆåÊàê„ÄÇ")
         
-#≤…π∫∂©µ•œ¬Õ∆µΩÀÕªıÕ®÷™µ•
-#fid=≤…π∫∂©µ•FID£¨EntryId=≤…π∫∂©µ•FEntryId£¨FQty=œ¬Õ∆ ˝¡ø
-def PushDownRecNotice(fid,EntryId,FQty):
+                    
+#ÈááË¥≠ËÆ¢Âçï‰∏ãÊé®Âà∞ÈÄÅË¥ßÈÄöÁü•Âçï
+#fid=ÈááË¥≠ËÆ¢ÂçïFIDÔºåEntryId=ÈááË¥≠ËÆ¢ÂçïFEntryIdÔºåFQty=‰∏ãÊé®Êï∞ÈáèÔºåRecPlanID=ÈÄÅË¥ßËÆ°ÂàíÂçïIDÔºåRecPlanEntryID=ÈÄÅË¥ßËÆ°ÂàíÂçïEntryIDÔºåRecPlanBillNo=ÈÄÅË¥ßËÆ°ÂàíÂçïÂè∑
+def PushDownRecNotice(fid,EntryId,FQty,RecPlanID,RecPlanEntryID,RecPlanBillNo):
     rules = ConvertServiceHelper.GetConvertRules(this.Context, "PUR_PurchaseOrder", "PUR_ReceiveBill");
     if rules.Count==0:
-        return "≤…π∫∂©µ•œ¬Õ∆µΩÀÕªıÕ®÷™µ• ß∞‹£¨Œ¥’“µΩ◊™ªªπÊ‘Ú°£"
+        return "ÈááË¥≠ËÆ¢Âçï‰∏ãÊé®Âà∞ÈÄÅË¥ßÈÄöÁü•ÂçïÂ§±Ë¥•ÔºåÊú™ÊâæÂà∞ËΩ¨Êç¢ËßÑÂàô„ÄÇ"
     rule=rules[0];
     selectedrows=[];
     primarykey=str(fid);
@@ -89,14 +106,21 @@ def PushDownRecNotice(fid,EntryId,FQty):
     selectedrows.append(row);
     selectedrows=tuple(selectedrows);
     pushargs=PushArgs(rule,selectedrows);
-    # pushargs.TargetBillTypeId="ce8f49055c5c4782b65463a3f863bb4a";
+    pushargs.TargetBillTypeId="7cd93c259999489c97798063f2f7bd70";#Ê†áÂáÜÊî∂ÊñôÂçï
     # pushargs.TargetOrgId=0;
-    PushResult=ConvertServiceHelper.Push(this.Context,pushargs,OperateOption.Create());
+    try:
+        PushResult=ConvertServiceHelper.Push(this.Context,pushargs,False);#False ‰∏çÊ£ÄÊü•ÊùÉÈôê
+    except:
+        error="1.Áî®Êà∑ÈúÄÊúâÊî∂ÊñôÁªÑÁªá‰∏ãÊî∂ÊñôÂçïÁöÑÊñ∞Â¢ûÊùÉÈôê\n"
+        error=error+"2.ÈááË¥≠ËÆ¢Âçï‚ÄúÂ∑≤ÂÆ°Ê†∏‚Äù„ÄÅ‚ÄúÊú™ÂÖ≥Èó≠‚Äù„ÄÅ‚ÄúÊú™‰∏öÂä°ÂÖ≥Èó≠‚Äù„ÄÅ‚ÄúÊú™ÂÜªÁªì‚Äù„ÄÅ‚ÄúÊú™ÁªàÊ≠¢‚ÄùÊâçËÉΩËøõË°å‰∏ãÊé®\n"
+        error=error+"3.ÈááË¥≠ËÆ¢Âçï‚ÄúÂÖ≥ËÅîÊï∞Èáè‚ÄùÂ∞è‰∫é‚Äú‰∫§Ë¥ß‰∏äÈôê‚Äù\n"
+        error=error+"4.ÂçïÊçÆ‰∏öÂä°ÊµÅÁ®ãÂ≠óÊÆµÊâÄÈááÁî®ÁöÑÊµÅÁ®ã‰∏äÊ∫êÂçï‰∏é‰∏ãÊé®ÁõÆÊ†áÂçïÊúâÁõ¥Êé•ÊµÅËΩ¨ÂÖ≥Á≥ªÊàñÊòØËá™Áî±ÊµÅÁ®ãÔºà‰∏öÂä°ÊµÅÁ®ãÂ≠óÊÆµ‰∏∫Á©∫Ôºâ"
+        return error
+        
     SuccessFlag=PushResult.IsSuccess;
-    
     Errmsg=""
     if str(SuccessFlag)=="False":
-        Errmsg="œ¬Õ∆ ß∞‹:"
+        Errmsg="‰∏ãÊé®Â§±Ë¥•:"
         if PushResult.OperateResult.Count>0:
             Errmsg=Errmsg+PushResult.OperateResult[0].Message;
         if PushResult.ValidationErrors.Count>0:
@@ -107,12 +131,12 @@ def PushDownRecNotice(fid,EntryId,FQty):
         objs=[];
         for p in PushResult.TargetDataEntities:
             obj=p.DataEntity;
-            # ‘⁄¥À–ﬁ∏ƒ…˙≥…∫Ûµƒ ˝æ›∞¸
-            # ActReceiveQty=obj["PUR_ReceiveEntry"][0]["ActReceiveQty"] #π©”¶…ÃÀÕªı ˝¡ø
-            # BaseUnitQty=obj["PUR_ReceiveEntry"][0]["BaseUnitQty"] #ª˘±æµ•Œª ˝¡ø
-            # ConvertRate=ActReceiveQty/BaseUnitQty #ª˘±æµ•Œª◊™ªª¬ 
+            # Âú®Ê≠§‰øÆÊîπÁîüÊàêÂêéÁöÑÊï∞ÊçÆÂåÖ
+            # ActReceiveQty=obj["PUR_ReceiveEntry"][0]["ActReceiveQty"] #‰æõÂ∫îÂïÜÈÄÅË¥ßÊï∞Èáè
+            # BaseUnitQty=obj["PUR_ReceiveEntry"][0]["BaseUnitQty"] #Âü∫Êú¨Âçï‰ΩçÊï∞Èáè
+            # ConvertRate=ActReceiveQty/BaseUnitQty #Âü∫Êú¨Âçï‰ΩçËΩ¨Êç¢Áéá
             # obj["PUR_ReceiveEntry"][0]["ActReceiveQty"]=FQty
-            # obj["PUR_ReceiveEntry"][0]["BaseUnitQty"]=FQty*ConvertRate #∏˘æ›Ωªªı ˝¡øº∆À„ª˘±æµ•Œª ˝¡ø
+            # obj["PUR_ReceiveEntry"][0]["BaseUnitQty"]=FQty*ConvertRate #Ê†πÊçÆ‰∫§Ë¥ßÊï∞ÈáèËÆ°ÁÆóÂü∫Êú¨Âçï‰ΩçÊï∞Èáè
             objs.append(obj);
         objs=tuple(objs);
         targetBillMeta=MetaDataServiceHelper.Load(this.Context, "PUR_ReceiveBill");
@@ -121,7 +145,7 @@ def PushDownRecNotice(fid,EntryId,FQty):
         SaveResult=BusinessDataServiceHelper.Save(this.Context, targetBillMeta.BusinessInfo, objs, saveOption, "Save");
         SuccessFlag=SaveResult.IsSuccess;
         if str(SuccessFlag)=="False":
-            Errmsg="±£¥Ê ß∞‹:"
+            Errmsg="‰øùÂ≠òÂ§±Ë¥•:"
             if SaveResult.OperateResult.Count>0:
                 Errmsg=Errmsg+SaveResult.OperateResult[0].Message;
             if SaveResult.ValidationErrors.Count>0:
@@ -129,7 +153,7 @@ def PushDownRecNotice(fid,EntryId,FQty):
                 Errmsg=Errmsg+","+str(SaveResult.InteractionContext);
             # raise NameError(Errmsg);
         else:
-            #µ•æ›œ¬Õ∆≥…π¶£°–ﬁ∏ƒ ˝¡ø
+            #ÂçïÊçÆ‰∏ãÊé®ÊàêÂäüÔºÅ‰øÆÊîπÊï∞Èáè
             NewBillID = SaveResult.OperateResult[0].PKValue
             sql="/*dialect*/ select FEntryID from T_PUR_ReceiveEntry where FID="+str(NewBillID)
             SQLRows=DBServiceHelper.ExecuteDynamicObject(this.Context,sql)
@@ -139,23 +163,27 @@ def PushDownRecNotice(fid,EntryId,FQty):
                 data=data+"\"Model\": [                                         "
                 data=data+"    {                                                "
                 data=data+"        \"FID\": "+str(NewBillID)+",                 "
+                data=data+"        \"FIsInsideBill\":1,                 "
                 data=data+"        \"FDetailEntity\": [{                         "
                 data=data+"            \"FEntryID\": "+str(SQLRows[0]["FEntryID"])+",        "
-                data=data+"            \"FActReceiveQty\": "+str(FQty)+"        "
+                data=data+"            \"FActReceiveQty\": "+str(FQty)+",        "
+                data=data+"            \"F_ora_RecPlanID\": "+str(RecPlanID)+",        "
+                data=data+"            \"F_ora_RecPlanEntryID\": "+str(RecPlanEntryID)+",        "
+                data=data+"            \"F_ora_RecPlanBillNo\": "+str(RecPlanBillNo)+"        "
                 data=data+"        }]"
                 data=data+"    }"
                 data=data+"]}"
-                reqResult=WebApiServiceCall.BatchSave(this.Context, "PUR_ReceiveBill",data);#Dictionary[str, object]
+                reqResult=WebApiServiceCall.BatchSave(this.Context, "SCP_ReceiveBill",data);#Dictionary[str, object]
                 IsSuccess=reqResult["Result"]["ResponseStatus"]["IsSuccess"]
                 if not IsSuccess:
                     SaveErrors=reqResult["Result"]["ResponseStatus"]["Errors"] #List[object]
-                    Errmsg="save ß∞‹£∫"
+                    Errmsg="saveÂ§±Ë¥•Ôºö"
                     for saveError in SaveErrors:
                         Errmsg=Errmsg+str(saveError["FieldName"])+","+saveError["Message"]+"\n"
                     # raise NameError(Errmsg)
                     return Errmsg
                 else:
-                    SuccessBillNo=reqResult["Result"]["ResponseStatus"]["SuccessEntitys"][0]["Number"]#±£¥Ê≥…π¶
+                    SuccessBillNo=reqResult["Result"]["ResponseStatus"]["SuccessEntitys"][0]["Number"]#‰øùÂ≠òÊàêÂäü
                     return SuccessBillNo
             return str(NewBillID)
     return Errmsg

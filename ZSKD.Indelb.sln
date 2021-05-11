@@ -5,17 +5,9 @@ VisualStudioVersion = 16.0.29609.76
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZSKD.Indelb.ReciveBill", "ZSKD.Indelb.ReciveBill\ZSKD.Indelb.ReciveBill.csproj", "{CBD8D7D0-3799-4CB6-828C-473151C6FA1A}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Python", "Python", "{1682A92A-02F9-4E63-AFDE-CF2A4DFF21A2}"
-	ProjectSection(SolutionItems) = preProject
-		收料通知单已导出QIS操作.py = 收料通知单已导出QIS操作.py
-		送货计划单表单插件.py = 送货计划单表单插件.py
-		采购回货计划表元数据表单插件（动态表单）.py = 采购回货计划表元数据表单插件（动态表单）.py
-		采购回货计划表表单插件（动态表单）.py = 采购回货计划表表单插件（动态表单）.py
-		销售订单保存后生成PI号.py = 销售订单保存后生成PI号.py
-		预测单保存后生成PI号.py = 预测单保存后生成PI号.py
-	EndProjectSection
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZSKD.Indelb.Plugins", "ZSKD.Indelb.Plugins\ZSKD.Indelb.Plugins.csproj", "{BE1870E3-33C6-464B-B5E4-A035011FA27C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZSKD.Indelb.ProwayPLM", "ZSKD.Indelb.ProwayPLM\ZSKD.Indelb.ProwayPLM.csproj", "{B303FD02-6D1E-4B57-897D-66B45BA468B4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,6 +23,10 @@ Global
 		{BE1870E3-33C6-464B-B5E4-A035011FA27C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BE1870E3-33C6-464B-B5E4-A035011FA27C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BE1870E3-33C6-464B-B5E4-A035011FA27C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B303FD02-6D1E-4B57-897D-66B45BA468B4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B303FD02-6D1E-4B57-897D-66B45BA468B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B303FD02-6D1E-4B57-897D-66B45BA468B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B303FD02-6D1E-4B57-897D-66B45BA468B4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
